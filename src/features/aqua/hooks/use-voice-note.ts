@@ -44,19 +44,21 @@ export function useVoiceNote(onTranscript: (text: string) => void) {
 
   async function stop() {
     if (phase === 'transcribing') return;
-    stream.stop();
-    await setAudioModeAsync({ allowsRecording: false });
+    setPhase('transcribing');
+    try {
+      stream.stop();
+    } catch {}
     const captured = chunks.current;
     chunks.current = [];
-    if (captured.reduce((n, c) => n + c.length, 0) < rate.current) {
+    if (captured.reduce((n, c) => n + c.length, 0) < rate.current * 2) {
       setPhase('idle');
       setError('That was too short. Tap the mic and speak, then tap again to send.');
       return;
     }
-    setPhase('transcribing');
     try {
-      const text = await transcribePcm(captured, rate.current);
-      if (!text) {
+      const said = await transcribePcm(captured, rate.current);
+      const text = said.replace(/\[[^\]]*\]|\([^)]*\)/g, '').trim();
+      if (!/[a-z0-9]/i.test(text)) {
         setError("We couldn't hear any words. Try again a bit closer to the phone.");
         return;
       }

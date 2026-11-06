@@ -21,7 +21,7 @@ voiceRoutes.post('/voice/transcribe', authMiddleware, async (c) => {
     const media = await aiMedia(file)
     const ai = newlyAi(c.env, c.get('userId'))
     let job = await ai.generate({ model: 'transcribe', media: [media], languageCode: 'eng' }, key)
-    for (let i = 0; i < 60 && !['succeeded', 'failed', 'cancelled'].includes(job.status); i += 1) {
+    for (let i = 0; i < 110 && !['succeeded', 'failed', 'cancelled'].includes(job.status); i += 1) {
       await sleep(1000)
       job = await ai.get(job.id)
     }

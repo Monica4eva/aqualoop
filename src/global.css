@@ -19,29 +19,72 @@
  * design/DESIGN.md for the identity this encodes.
  * ════════════════════════════════════════════════════════════════════════════ */
 
-/* @newly:tokens:start — the lock_design step and the refine path rewrite EVERYTHING
- * between these markers. Hand-edits here are allowed but will be replaced on refine. */
-
-/* Brand accent (primary action color), per color scheme. OKLCH like HeroUI.
- * The scaffold default is Newly pink (the app icon's magenta) so the Welcome
- * screen is on-brand out of the box; lock_design replaces it with the app's own. */
+/* @newly:tokens:start — AquaLoop: light sky app (the chosen picture is light, so dark mode uses the same values). */
 @layer theme {
   :root {
     @variant light {
-      --accent: oklch(0.66 0.26 325);
-      --accent-foreground: oklch(0.99 0 0);
+      --background: #F3F8FD;
+      --foreground: #0E1E3A;
+      --muted: #5B6B88;
+      --surface: #FFFFFF;
+      --surface-foreground: #0E1E3A;
+      --surface-secondary: #E4F1FC;
+      --surface-secondary-foreground: #0E1E3A;
+      --default: #E4F1FC;
+      --default-foreground: #0E1E3A;
+      --accent: #1E8BE6;
+      --accent-foreground: #FFFFFF;
+      --border: #E3EAF5;
+      --field-background: #FFFFFF;
+      --field-foreground: #0E1E3A;
+      --field-placeholder: #8A97AE;
+      --success: #22C3A0;
+      --warning: #FF8A3D;
+      --danger: #E5484D;
+      --segment: #FFFFFF;
+      --segment-foreground: #0E1E3A;
+      --overlay: #FFFFFF;
+      --overlay-foreground: #0E1E3A;
     }
     @variant dark {
-      --accent: oklch(0.72 0.22 325);
-      --accent-foreground: oklch(0.16 0 0);
+      --background: #F3F8FD;
+      --foreground: #0E1E3A;
+      --muted: #5B6B88;
+      --surface: #FFFFFF;
+      --surface-foreground: #0E1E3A;
+      --surface-secondary: #E4F1FC;
+      --surface-secondary-foreground: #0E1E3A;
+      --default: #E4F1FC;
+      --default-foreground: #0E1E3A;
+      --accent: #1E8BE6;
+      --accent-foreground: #FFFFFF;
+      --border: #E3EAF5;
+      --field-background: #FFFFFF;
+      --field-foreground: #0E1E3A;
+      --field-placeholder: #8A97AE;
+      --success: #22C3A0;
+      --warning: #FF8A3D;
+      --danger: #E5484D;
+      --segment: #FFFFFF;
+      --segment-foreground: #0E1E3A;
+      --overlay: #FFFFFF;
+      --overlay-foreground: #0E1E3A;
     }
   }
 }
 
-/* Base corner radius — the DENSITY dial's lever. Every rounded-* utility derives
- * from this (HeroUI: --radius-2xl = --radius * 2, etc.). Larger = softer/cozier. */
 @theme {
-  --radius: 0.75rem;
+  --radius: 0.5rem;
+  --color-sky: #E4F1FC;
+  --color-sky-deep: #CFE6FA;
+  --color-hero: #DDF2FC;
+  --color-ai: #7B4DFF;
+  --color-ai-soft: #EFE9FF;
+  --color-amber: #FF8A3D;
+  --color-amber-soft: #FFF1E6;
+  --color-lagoon: #22C3A0;
+  --color-lagoon-soft: #E3F8F2;
+  --color-aqua: #14C8C8;
 }
 /* @newly:tokens:end */
 

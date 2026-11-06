@@ -1,11 +1,4 @@
-import {
-  Tabs,
-  TabList,
-  TabTrigger,
-  TabSlot,
-  TabTriggerSlotProps,
-  TabListProps,
-} from 'expo-router/ui';
+import { Tabs, TabList, TabTrigger, TabSlot, TabTriggerSlotProps, TabListProps } from 'expo-router/ui';
 import { Pressable, Text, View } from 'react-native';
 
 export default function AppTabs() {
@@ -14,11 +7,17 @@ export default function AppTabs() {
       <TabSlot style={{ height: '100%' }} />
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="home" href="/" asChild>
+          <TabTrigger name="index" href="/" asChild>
             <TabButton>Home</TabButton>
           </TabTrigger>
-          <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Explore</TabButton>
+          <TabTrigger name="catalogue" href="/catalogue" asChild>
+            <TabButton>Catalogue</TabButton>
+          </TabTrigger>
+          <TabTrigger name="deliveries" href="/deliveries" asChild>
+            <TabButton>Deliveries</TabButton>
+          </TabTrigger>
+          <TabTrigger name="containers" href="/containers" asChild>
+            <TabButton>Containers</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>
@@ -29,20 +28,15 @@ export default function AppTabs() {
 export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
   return (
     <Pressable {...props} className="rounded-xl px-4 py-2 active:opacity-70">
-      <Text
-        className={
-          isFocused ? 'text-sm font-medium text-foreground' : 'text-sm font-medium text-muted'
-        }>
-        {children}
-      </Text>
+      <Text className={isFocused ? 'text-sm font-medium text-accent' : 'text-sm font-medium text-muted'}>{children}</Text>
     </Pressable>
   );
 }
 
 export function CustomTabList(props: TabListProps) {
   return (
-    <View {...props} className="absolute w-full flex-row items-center justify-center p-4">
-      <View className="w-full max-w-3xl flex-row items-center gap-2 rounded-2xl bg-surface px-5 py-2">
+    <View {...props} className="absolute bottom-0 w-full flex-row items-center justify-center p-4">
+      <View className="w-full max-w-3xl flex-row items-center justify-around gap-2 rounded-2xl bg-surface px-5 py-2">
         {props.children}
       </View>
     </View>

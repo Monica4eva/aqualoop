@@ -1,7 +1,6 @@
-import { Input } from 'heroui-native';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, Switch, Text, View } from 'react-native';
+import { ScrollView, Switch, Text, TextInput, View } from 'react-native';
 
 import { Chip } from '@/components/chip';
 import { Divider } from '@/components/divider';
@@ -75,11 +74,12 @@ export default function CatalogueScreen() {
         <View className="flex-row items-center gap-2">
           <View className="flex-1 flex-row items-center gap-2 bg-surface rounded-full px-4 h-11">
             <Icon sf="magnifyingglass" ion="search" size={16} color="muted" />
-            <Input
+            <TextInput
               value={query}
               onChangeText={setQuery}
               placeholder="Search drinks"
-              className="flex-1 bg-transparent border-0 shadow-none px-0 h-11 text-[14px] leading-none"
+              placeholderTextColor={Palette.muted}
+              className="flex-1 h-11 text-[14px] leading-none text-foreground"
               returnKeyType="search"
             />
           </View>

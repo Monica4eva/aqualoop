@@ -38,17 +38,15 @@ export default function ChatScreen() {
 
   return (
     <KeyboardAvoidingView behavior="padding" className="flex-1 bg-background">
+      <View className="px-5 pt-safe-offset-2 pb-2">
+        <BackHeader title="Chat & Order" subtitle={`${household?.label ?? ''} • replies in seconds`} />
+      </View>
       <FlatList
         className="flex-1"
         inverted
         data={messages}
         keyExtractor={(m) => m.id}
         contentContainerClassName="px-5 pt-4 pb-safe-offset-2 gap-3"
-        ListFooterComponent={
-          <View className="pt-safe-offset-2 pb-2">
-            <BackHeader title="Chat & Order" subtitle={`${household?.label ?? ''} • replies in seconds`} />
-          </View>
-        }
         ListEmptyComponent={<Text className="text-[13px] text-muted text-center">Say what you need, like "2 containers on Thursday".</Text>}
         renderItem={({ item: m }) => {
           const mine = m.from === 'customer';

@@ -35,10 +35,10 @@ export function TileLink({ icon, title, subtitle, onPress, layout = 'row', badge
   return (
     <Pressable onPress={onPress} className="flex-1">
       <Panel pad="tight" grow>
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row items-center gap-2">
           {icon}
           <View className="flex-1 gap-0.5">
-            <Text className="text-[14px] font-semibold text-foreground" numberOfLines={1}>{title}</Text>
+            <Text className="text-[13px] font-semibold text-foreground" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{title}</Text>
             <Text className="text-[11px] text-muted" numberOfLines={2}>{subtitle}</Text>
           </View>
           {badge ?? <NextMark tone="muted" />}

@@ -37,7 +37,7 @@ export default function HomeScreen() {
     : `${s.myUpcoming.length} deliveries • ${s.myWaiting} pending`;
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="px-5 pt-safe-offset-2 pb-safe-offset-22 gap-5">
+    <ScrollView className="flex-1 bg-background" contentContainerClassName="px-5 pt-safe-offset-2 pb-safe-offset-22 gap-4">
       <ScreenHeader title="Today's Orders" subtitle={subtitle} />
 
       {owner ? (
@@ -46,7 +46,7 @@ export default function HomeScreen() {
           title={s.waiting.length > 0 ? `${s.waiting.length} messages need you` : 'All caught up'}
           body={s.waiting.length > 0 ? 'Read each one, then approve, edit or reply.' : 'Every message has been confirmed or answered.'}
           art={ART.home}
-          artWidth={150}
+          artWidth={136}
           artRatio={422 / 390}
         >
           <PillButton label={s.waiting.length > 0 ? 'Open checks' : 'See history'} next onPress={() => router.push('/review')} icon={<Icon sf="checklist" ion="list" size={16} color="white" />} />
@@ -57,7 +57,7 @@ export default function HomeScreen() {
           title="Water & Milk delivered to you"
           body="Tap to chat, place a new order or get help."
           art={ART.home}
-          artWidth={150}
+          artWidth={136}
           artRatio={422 / 390}
         >
           <PillButton label="Start a chat" next onPress={() => router.push('/chat')} icon={<Icon sf="message" ion="chatbubble-outline" size={16} color="white" />} />
@@ -66,20 +66,20 @@ export default function HomeScreen() {
 
       <View className="flex-row gap-3">
         <TileLink
-          icon={<IconBubble size="lg"><Icon sf="arrow.triangle.2.circlepath" ion="repeat" size={20} /></IconBubble>}
+          icon={<IconBubble><Icon sf="arrow.triangle.2.circlepath" ion="repeat" size={18} /></IconBubble>}
           title={owner ? 'Repeat Orders' : 'Repeat Order'}
           subtitle={owner ? `${s.data.households.length} households` : 'Save time, order again'}
           onPress={() => router.push(owner ? '/households' : '/my-order')}
         />
         <TileLink
-          icon={<IconBubble size="lg"><Icon sf="waterbottle" ion="water-outline" size={20} /></IconBubble>}
+          icon={<IconBubble><Icon sf="waterbottle" ion="water-outline" size={18} /></IconBubble>}
           title="Empty Containers"
-          subtitle={`${owner ? s.readyAllTotal : s.myReadyTotal} need to be collected`}
+          subtitle={`${owner ? s.readyAllTotal : s.myReadyTotal} to collect`}
           onPress={() => router.push('/containers')}
         />
       </View>
 
-      <View className="gap-3">
+      <View className="gap-2">
         <SectionHeader title="Repeat Orders" onAction={() => router.push(owner ? '/households' : '/my-order')} />
         <Panel pad="list">
           {owner
@@ -120,7 +120,7 @@ export default function HomeScreen() {
         </Panel>
       </View>
 
-      <View className="gap-3">
+      <View className="gap-2">
         <SectionHeader title="Empty Containers" onAction={() => router.push('/containers')} />
         <Panel>
           <View className="flex-row items-center gap-3">
@@ -158,7 +158,7 @@ export default function HomeScreen() {
         </Panel>
       </View>
 
-      <View className="gap-3">
+      <View className="gap-2">
         <SectionHeader title="Recent Activity" onAction={owner ? () => router.push('/households') : undefined} />
         <Panel pad="list">
           {s.activity.length === 0 ? <View className="py-4"><Text className="text-[13px] text-muted">Nothing yet. Your deliveries and pickups show up here.</Text></View> : null}

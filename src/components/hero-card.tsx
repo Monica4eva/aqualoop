@@ -28,9 +28,9 @@ export function HeroCard({ eyebrow, title, body, art, artWidth = 150, artRatio =
       >
         <Image source={art} className="w-full h-full" contentFit="contain" />
       </View>
-      <View className="p-5 gap-3" style={{ paddingRight: artWidth * 0.8 }}>
+      <View className="p-4 gap-2.5" style={{ paddingRight: artWidth * 0.8 }}>
         {eyebrow}
-        <Text className="text-[22px] leading-7 font-bold text-foreground">{title}</Text>
+        <Text className="text-[20px] leading-6 font-bold text-foreground">{title}</Text>
         {body ? <Text className="text-[13px] leading-5 text-muted">{body}</Text> : null}
         {children}
       </View>

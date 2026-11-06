@@ -65,6 +65,7 @@ export default function StopScreen() {
             <Text className="text-[12px] text-muted text-center">
               {record ? `${record.delivered.length > 0 ? linesText(data, record.delivered) : 'Nothing dropped'}${returnsText(record.collected) ? ` • collected ${returnsText(record.collected)}` : ''}${record.damaged > 0 ? ` • ${record.damaged} damaged` : ''}` : ''}
             </Text>
+            <View className="flex-row justify-center self-stretch">
             {nextStop ? (
               <PillButton
                 label={`Next: ${nextStop.household?.label ?? ''}`}
@@ -74,6 +75,7 @@ export default function StopScreen() {
             ) : (
               <PillButton label="Run finished, back to the run" onPress={() => router.back()} />
             )}
+            </View>
           </View>
         </Panel>
       ) : (

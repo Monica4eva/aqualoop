@@ -6,6 +6,7 @@ import { Presets } from 'react-native-pulsar';
 import { BackHeader } from '@/components/back-header';
 import { Chip } from '@/components/chip';
 import { Divider } from '@/components/divider';
+import { Icon } from '@/components/icon';
 import { Panel } from '@/components/panel';
 import { PillButton } from '@/components/pill-button';
 import { RouteChip } from '@/features/aqua/components/route-chip';
@@ -48,7 +49,7 @@ export default function TestLabScreen() {
           {ran > 0 ? <Chip label={passed === LAB_CASES.length ? 'All passed' : `${LAB_CASES.length - passed} failed`} tone={passed === LAB_CASES.length ? 'success' : 'danger'} /> : null}
         </View>
         <Text className="text-[11px] text-muted">Each case runs on its own fresh copy of Tue 17 Nov, 2 PM. Your demo data is not touched.</Text>
-        <PillButton label="Run all from fresh start" icon="play.fill" onPress={runAll} />
+        <PillButton label="Run all from fresh start" icon={<Icon sf="play.fill" ion="play" size={14} color="white" />} onPress={runAll} />
       </Panel>
 
       <Panel pad="list">

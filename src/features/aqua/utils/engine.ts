@@ -151,7 +151,8 @@ export function processMessage(data: AquaData, input: Inbound, given?: { parsed:
     askedForHuman,
   });
 
-  if (!given && isDuplicate(data, input)) return result('duplicate', empty);
+  const asksOnly = parsed.intent === 'query' || parsed.intent === 'opt_out';
+  if (!given && !asksOnly && isDuplicate(data, input)) return result('duplicate', empty);
   if (!household) rules.add('R4');
   if (askedForHuman) return result('owner', empty);
   if (parsed.language !== 'en') {

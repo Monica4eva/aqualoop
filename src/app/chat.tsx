@@ -7,6 +7,7 @@ import { BackHeader } from '@/components/back-header';
 import { Chip } from '@/components/chip';
 import { Icon } from '@/components/icon';
 import { Pressable, pressHaptic } from '@/components/pressable';
+import { useVoiceNote } from '@/features/aqua/hooks/use-voice-note';
 import { UnderstoodCard } from '@/features/aqua/components/understood-card';
 import { useAquaStore } from '@/features/aqua/store/aqua-store';
 import { fmtStamp } from '@/features/aqua/utils/dates';
@@ -24,17 +25,24 @@ export default function ChatScreen() {
   const hid = useAquaStore((s) => s.householdId);
   const sendMessage = useAquaStore((s) => s.sendMessage);
   const [text, setText] = useState('');
-  const [voice, setVoice] = useState(false);
   const household = data.households.find((h) => h.id === hid);
   const messages = data.messages.filter((m) => m.householdId === hid).slice().reverse();
 
-  const send = (t: string) => {
+  const send = (t: string, channel: 'text' | 'voice' = 'text') => {
     const body = t.trim();
     if (!body) return;
     pressHaptic();
-    sendMessage(body, voice ? 'voice' : 'text');
-    setText('');
+    sendMessage(body, channel);
+    if (channel === 'text') setText('');
   };
+  const note = useVoiceNote((words) => send(words, 'voice'));
+  const recording = note.phase === 'recording';
+  const busy = note.phase === 'transcribing';
+  const voiceLine = recording
+    ? `Recording 0:${String(note.seconds).padStart(2, '0')} • tap the mic again to send`
+    : busy
+      ? 'Turning your voice note into text…'
+      : note.error;
 
   return (
     <KeyboardAvoidingView behavior="padding" className="flex-1 bg-background">
@@ -89,16 +97,17 @@ export default function ChatScreen() {
             )}
           />
           <View className="flex-row items-center gap-2">
-            <Pressable onPress={() => setVoice(!voice)} accessibilityLabel={voice ? 'Typing mode' : 'Voice note mode'}>
-              <View className={`w-11 h-11 rounded-full items-center justify-center ${voice ? 'bg-accent' : 'bg-surface'}`}>
-                <Icon sf={voice ? 'mic.fill' : 'mic'} ion={voice ? 'mic' : 'mic-outline'} size={18} color={voice ? 'white' : 'accent'} />
+            <Pressable onPress={() => { pressHaptic(); note.toggle(); }} isDisabled={busy} accessibilityLabel={recording ? 'Stop and send voice note' : 'Record a voice note'}>
+              <View className={`w-11 h-11 rounded-full items-center justify-center ${recording ? 'bg-danger' : busy ? 'bg-sky' : 'bg-surface'}`}>
+                <Icon sf={recording ? 'stop.fill' : 'mic'} ion={recording ? 'stop' : 'mic-outline'} size={18} color={recording ? 'white' : 'accent'} />
               </View>
             </Pressable>
             <View className="flex-1 flex-row items-center rounded-full bg-surface px-4">
               <TextInput
                 value={text}
                 onChangeText={setText}
-                placeholder={voice ? 'Say it (demo: type what you would say)' : 'Type a message'}
+                placeholder={recording ? 'Listening…' : 'Type a message'}
+                editable={!recording && !busy}
                 onSubmitEditing={() => send(text)}
                 returnKeyType="send"
                 placeholderTextColor={Palette.muted}
@@ -111,7 +120,8 @@ export default function ChatScreen() {
               </View>
             </Pressable>
           </View>
-          {voice ? <Text className="text-[10px] text-faint">Voice notes: we keep the words, the audio is deleted after review.</Text> : null}
+          {voiceLine ? <Text className={`text-[11px] ${recording ? 'text-danger font-semibold' : 'text-muted'}`}>{voiceLine}</Text> : null}
+          <Text className="text-[10px] text-faint">Tap the mic to speak your order. We keep the words; the audio is deleted.</Text>
         </View>
     </KeyboardAvoidingView>
   );

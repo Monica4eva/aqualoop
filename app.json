@@ -44,7 +44,13 @@
       "expo-font",
       "expo-image",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "AquaLoop uses the microphone so you can send your order as a voice note."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

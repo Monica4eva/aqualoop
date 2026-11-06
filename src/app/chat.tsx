@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { FlatList, Text, View } from 'react-native';
+import { FlatList, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
-import { Input } from 'heroui-native';
+import { Palette } from '@/constants/theme';
 
 import { BackHeader } from '@/components/back-header';
 import { Chip } from '@/components/chip';
@@ -95,13 +95,14 @@ export default function ChatScreen() {
               </View>
             </Pressable>
             <View className="flex-1 flex-row items-center rounded-full bg-surface px-4">
-              <Input
+              <TextInput
                 value={text}
                 onChangeText={setText}
                 placeholder={voice ? 'Say it (demo: type what you would say)' : 'Type a message'}
                 onSubmitEditing={() => send(text)}
                 returnKeyType="send"
-                className="flex-1 bg-transparent border-0 shadow-none px-0 h-11 text-[14px] leading-none"
+                placeholderTextColor={Palette.muted}
+                className="flex-1 h-11 text-[14px] leading-none text-foreground"
               />
             </View>
             <Pressable onPress={() => send(text)} accessibilityLabel="Send">

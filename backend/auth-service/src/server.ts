@@ -7,6 +7,9 @@ interface Bindings extends AuthEnv {
   NEWLY_ENV: string
   NEWLY_PROJECT_ID: string
   LOG_LEVEL: string
+  // Comma-separated exact origins allowed to call this service, e.g.
+  // "https://app.example.com". Unset/empty = all cross-origin browser requests blocked.
+  ALLOWED_ORIGINS?: string
   // Uptrace OTLP exporter — kept in sync with api-service. UPTRACE_OTLP_URL is
   // a per-env [vars] entry; UPTRACE_DSN is a Worker Secret PUT'd by deploy.sh.
   UPTRACE_OTLP_URL: string
@@ -17,22 +20,27 @@ type Variables = Record<string, never>
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-app.use(
-  '*',
+app.use('*', (c, next) =>
   cors({
-    origin: (origin) => origin || '*',
+    origin: (origin) => {
+      const allowed = (c.env.ALLOWED_ORIGINS ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      return origin && allowed.includes(origin) ? origin : null
+    },
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Authorization', 'Content-Type', 'X-Request-Id'],
     credentials: true,
     maxAge: 86400,
-  }),
+  })(c, next),
 )
 
 app.get('/health', (c) => c.json({ ok: true, service: 'auth' }))
 app.get('/healthz', (c) => c.json({ ok: true, service: 'auth' }))
 
 app.all('/api/auth/*', (c) => {
-  const auth = createAuth(c.env, c.req.raw)
+  const auth = createAuth(c.env, c.req.raw, c.executionCtx)
   return auth.handler(c.req.raw)
 })
 

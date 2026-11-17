@@ -100297,18 +100297,21 @@ __name(createAuth, "createAuth");
 var app = new Hono2();
 app.use(
   "*",
-  cors({
-    origin: (origin) => origin || "*",
+  (c, next) => cors({
+    origin: (origin) => {
+      const allowed = (c.env.ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+      return origin && allowed.includes(origin) ? origin : null;
+    },
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Authorization", "Content-Type", "X-Request-Id"],
     credentials: true,
     maxAge: 86400
-  })
+  })(c, next)
 );
 app.get("/health", (c) => c.json({ ok: true, service: "auth" }));
 app.get("/healthz", (c) => c.json({ ok: true, service: "auth" }));
 app.all("/api/auth/*", (c) => {
-  const auth = createAuth(c.env, c.req.raw);
+  const auth = createAuth(c.env, c.req.raw, c.executionCtx);
   return auth.handler(c.req.raw);
 });
 var handler = {

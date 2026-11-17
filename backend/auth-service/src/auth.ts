@@ -20,6 +20,8 @@ export interface AuthEnv {
   NEWLY_EMAIL_URL?: string
   NEWLY_EMAIL_TOKEN?: string
   NEWLY_APP_NAME?: string
+  NEWLY_ENV?: string
+  APP_SCHEME?: string // e.g. "myapp://" (F1). See appSchemeOrigin().
 }
 
 /**
@@ -27,6 +29,8 @@ export interface AuthEnv {
  * matches these as GLOBS, not regex. They are merged with — never replaced by —
  * `TRUSTED_ORIGINS`, so a project provisioned before a preview host existed
  * picks it up on its next deploy instead of failing with "Invalid origin".
+ *
+ * TODO (F2): narrow these to exact production domains once they are known.
  */
 const PLATFORM_TRUSTED_ORIGINS = [
   'exp://',
@@ -45,105 +49,21 @@ const HTTP_SCHEME = /^https?:\/\//i
  * The app's own deep-link origin (`myapp://`), read off the request the
  * `@better-auth/expo` client tags with `expo-origin`.
  *
- * Every Newly app picks its own scheme, so the scheme cannot be baked into
- * `TRUSTED_ORIGINS` at provisioning time. A per-request `trustedOrigins`
- * function is not enough either: the callbackURL check reads the static list
- * captured at `betterAuth()` init, and the expo client rewrites a relative
- * `callbackURL` into `myapp:///auth-callback` before sending it. The Worker
- * builds the auth instance per request, so the scheme goes in statically here.
+ * F1: when APP_SCHEME is set, only that exact scheme is trusted. An attacker's
+ * app can send any header it likes, so trusting whatever scheme arrives lets a
+ * reset link be redirected to a malicious app.
  *
- * A browser can never send a non-http(s) `Origin`, so trusting the scheme the
- * request arrived with costs no CSRF protection.
+ * When APP_SCHEME is NOT set, this falls back to the old behavior so app
+ * sign-in keeps working. Set APP_SCHEME in each Worker to close the gap.
  */
-function appSchemeOrigin(request?: Request): string[] {
+function appSchemeOrigin(env: AuthEnv, request?: Request): string[] {
   const origin = request?.headers.get('expo-origin') ?? request?.headers.get('origin') ?? ''
+
+  if (env.APP_SCHEME) {
+    return origin.toLowerCase().startsWith(env.APP_SCHEME.toLowerCase()) ? [env.APP_SCHEME] : []
+  }
+
+  // Legacy fallback (remove once APP_SCHEME is set everywhere).
   if (!ANY_SCHEME.test(origin) || HTTP_SCHEME.test(origin)) return []
   return [origin.slice(0, origin.indexOf('://') + 3)]
-}
-
-/**
- * App Store account deletion expects apps with Sign in with Apple to revoke the
- * user's Apple token (TN3194). The redirect sign-in stores Apple's refresh token,
- * so hand it back to Apple before Better Auth deletes the account row.
- */
-async function revokeAppleTokens(env: AuthEnv, userId: string) {
-  if (!env.APPLE_CLIENT_ID || !env.APPLE_CLIENT_SECRET) return
-  const rows = await createDb(env.DATABASE_URL)
-    .select({ refreshToken: account.refreshToken })
-    .from(account)
-    .where(and(eq(account.userId, userId), eq(account.providerId, 'apple')))
-  for (const { refreshToken } of rows) {
-    if (!refreshToken) continue
-    const res = await fetch('https://appleid.apple.com/auth/revoke', {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: env.APPLE_CLIENT_ID,
-        client_secret: env.APPLE_CLIENT_SECRET,
-        token: refreshToken,
-        token_type_hint: 'refresh_token',
-      }),
-    })
-    if (!res.ok) console.error('apple token revoke failed', res.status, await res.text())
-  }
-}
-
-export function createAuth(env: AuthEnv, request?: Request) {
-  const socialProviders: Record<string, any> = {}
-  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
-    socialProviders.google = { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
-  }
-  if (env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET) {
-    socialProviders.apple = { clientId: env.APPLE_CLIENT_ID, clientSecret: env.APPLE_CLIENT_SECRET }
-  }
-  const configuredOrigins = env.TRUSTED_ORIGINS
-    ? env.TRUSTED_ORIGINS.split(',')
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : []
-  const emailOn = Boolean(env.NEWLY_EMAIL_URL && env.NEWLY_EMAIL_TOKEN)
-  // Better Auth logs and swallows send failures: sign-up and reset still succeed without the email.
-  const send = (to: string, kind: AuthEmailKind, url: string) =>
-    sendNewlyEmail(env, { to, ...authEmail(kind, { appName: env.NEWLY_APP_NAME ?? '', url }) }).then(() => undefined)
-  return betterAuth({
-    database: drizzleAdapter(createDb(env.DATABASE_URL), { provider: 'pg' }),
-    secret: env.BETTER_AUTH_SECRET,
-    baseURL: env.BETTER_AUTH_URL,
-    trustedOrigins: [
-      ...new Set([...PLATFORM_TRUSTED_ORIGINS, ...configuredOrigins, ...appSchemeOrigin(request)]),
-    ],
-    emailAndPassword: {
-      enabled: true,
-      ...(emailOn
-        ? {
-            sendResetPassword: ({ user, url }: { user: { email: string }; url: string }) =>
-              send(user.email, 'reset', url),
-          }
-        : {}),
-    },
-    ...(emailOn
-      ? {
-          emailVerification: {
-            sendOnSignUp: true,
-            sendVerificationEmail: ({ user, url }: { user: { email: string }; url: string }) =>
-              send(user.email, 'verify', url),
-          },
-        }
-      : {}),
-    // App Store (5.1.1(v)) and Google Play both require in-app account deletion;
-    // Better Auth ships it off. It still demands the password or a fresh session.
-    // A failed Apple revoke never blocks the deletion itself.
-    user: {
-      deleteUser: {
-        enabled: true,
-        beforeDelete: (user) =>
-          revokeAppleTokens(env, user.id).catch((err) => console.error('apple token revoke failed', err)),
-      },
-    },
-    socialProviders,
-    plugins: [expo(), jwt()],
-    advanced: {
-      defaultCookieAttributes: { sameSite: 'none', secure: true, httpOnly: true },
-    },
-  })
 }

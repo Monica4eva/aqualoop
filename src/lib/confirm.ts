@@ -1,5 +1,5 @@
-import { Alert } from 'react-native';
-import { Presets } from 'react-native-pulsar';
+import { Alert } from "react-native";
+import { Presets } from "./haptics";
 
 type ConfirmDeleteOptions = {
   /** Dialog title, e.g. "Delete workout?". */
@@ -19,10 +19,15 @@ type ConfirmDeleteOptions = {
  *
  *   onPress={() => confirmDelete({ title: 'Delete workout?', onConfirm: () => removeWorkout(id) })}
  */
-export function confirmDelete({ title = 'Delete?', message, confirmLabel = 'Delete', onConfirm }: ConfirmDeleteOptions): void {
+export function confirmDelete({
+  title = "Delete?",
+  message,
+  confirmLabel = "Delete",
+  onConfirm,
+}: ConfirmDeleteOptions): void {
   Presets.System.notificationWarning();
   Alert.alert(title, message, [
-    { text: 'Cancel', style: 'cancel' },
-    { text: confirmLabel, style: 'destructive', onPress: onConfirm },
+    { text: "Cancel", style: "cancel" },
+    { text: confirmLabel, style: "destructive", onPress: onConfirm },
   ]);
 }

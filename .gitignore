@@ -50,3 +50,14 @@ example
 
 # Agent tools
 .claude/
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Private keys
+*.pem
+*.keyaqualoop/

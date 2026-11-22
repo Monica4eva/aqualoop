@@ -1,6 +1,6 @@
-import { PressableFeedback } from 'heroui-native';
-import type { ComponentProps } from 'react';
-import { Presets } from 'react-native-pulsar';
+import { PressableFeedback } from "heroui-native";
+import type { ComponentProps } from "react";
+import { Presets } from "../lib/haptics";
 
 /** Fire the standard selection haptic (Pulsar). Call at the START of a HeroUI <Button>'s
  *  onPress (and any other onPress that doesn't go through <Pressable>/<ListRow>) so EVERY
@@ -25,7 +25,7 @@ export function Pressable({ onPress, ...rest }: PressableProps) {
     <PressableFeedback
       onPress={(e) => {
         pressHaptic();
-        if (typeof onPress === 'function') onPress(e);
+        if (typeof onPress === "function") onPress(e);
       }}
       {...rest}
     />

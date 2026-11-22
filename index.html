@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AquaLoop Homepage Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #E9EEF5;
+      color: #0F172A;
+    }
+    .preview-frame {
+      transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.35s ease;
+    }
+    .card-shadow {
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.03);
+    }
+    .hero-card-shadow {
+      box-shadow: 0 12px 32px rgba(29, 125, 250, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
+    }
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+    }
+    .animate-float {
+      animation: floatSlow 4s ease-in-out infinite;
+    }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-slide {
+      animation: fadeSlide 0.25s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Simulator Wrapper Bar -->
+  <div class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-2.5">
+      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-[#1D7DFA]"></span>
+      <span class="text-xs font-bold uppercase tracking-wider text-slate-700">
+        AquaLoop Homepage Preview
+      </span>
+      <span class="hidden md:inline text-xs text-slate-400">• Matches your exact light UI, mascot & role selector</span>
+    </div>
+
+    <!-- Desktop / Mobile Toggle -->
+    <div class="flex items-center gap-1 bg-[#F4F7FB] p-1 rounded-xl border border-[#E5ECF5]">
+      <button
+        id="btn-desktop"
+        onclick="setViewport('desktop')"
+        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#1D7DFA] text-white shadow-sm transition cursor-pointer"
+      >
+        Desktop Landing View
+      </button>
+      <button
+        id="btn-mobile"
+        onclick="setViewport('mobile')"
+        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer"
+      >
+        Mobile Viewport (390px)
+      </button>
+    </div>
+  </div>
+
+  <!-- Route / Action Notification Toast -->
+  <div id="route-toast" class="hidden fixed bottom-5 right-5 z-50 max-w-sm bg-white border border-[#D9EAFF] rounded-2xl p-4 shadow-xl animate-fade-slide">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="px-2.5 py-0.5 rounded-full bg-[#E8F2FF] text-[#1D7DFA] font-mono text-xs font-bold" id="toast-route">
+            /(tabs)
+          </span>
+          <span class="px-2 py-0.5 rounded-full bg-[#E6F7F0] text-[#059669] text-[11px] font-bold">
+            Live Demo Ready
+          </span>
+        </div>
+        <p class="text-sm font-bold text-[#0F172A]" id="toast-title">Launching AquaLoop</p>
+        <p class="text-xs text-[#64748B] mt-0.5 leading-relaxed" id="toast-desc">Opens the selected role experience.</p>
+      </div>
+      <button onclick="hideToast()" class="text-slate-400 hover:text-slate-700 text-sm font-bold px-1 cursor-pointer">✕</button>
+    </div>
+  </div>
+
+  <!-- Sign In / Judge Demo Pass Modal -->
+  <div id="signin-modal" class="hidden fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-[#E5ECF5] rounded-3xl max-w-md w-full p-6 shadow-2xl animate-fade-slide">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-[#E8F2FF] flex items-center justify-center text-[#1D7DFA]">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2.5C12 2.5 5 10.2 5 15.2C5 19.1 8.1 22 12 22C15.9 22 19 19.1 19 15.2C19 10.2 12 2.5 12 2.5Z"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-base font-extrabold text-[#0F172A]">Sign In to AquaLoop</h3>
+            <p class="text-xs text-[#64748B]">Demo sign-in only. No real account is created.</p>
+          </div>
+        </div>
+        <button onclick="closeSignInModal()" class="w-8 h-8 rounded-full bg-[#F4F7FB] text-slate-500 hover:text-slate-800 flex items-center justify-center font-bold text-sm cursor-pointer">✕</button>
+      </div>
+
+      <div class="space-y-3 mb-5">
+        <div>
+          <label class="block text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-1">Email Address</label>
+          <input
+            type="email"
+            id="modal-email"
+            placeholder="judge@aqualoop.demo"
+            class="w-full bg-[#F4F7FB] border border-[#E5ECF5] focus:border-[#1D7DFA] focus:bg-white focus:outline-none rounded-xl px-3.5 py-2.5 text-sm text-[#0F172A]"
+          />
+        </div>
+        <button
+          onclick="submitModalSignIn()"
+          class="w-full py-3 rounded-full bg-[#1D7DFA] hover:bg-[#1668D6] text-white font-bold text-sm shadow-md shadow-blue-500/20 transition cursor-pointer"
+        >
+          Continue with Email ›
+        </button>
+      </div>
+
+      <div class="pt-4 border-t border-[#E5ECF5]">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-[#64748B] mb-2.5">
+          Judge 1-Click Role Launch (No Password)
+        </p>
+        <div class="grid grid-cols-3 gap-2">
+          <button
+            onclick="closeSignInModal(); simulateLaunch('Customer', 'Willow Lane 7')"
+            class="p-2.5 rounded-2xl bg-[#F4F7FB] hover:bg-[#E8F2FF] border border-[#E5ECF5] text-center transition cursor-pointer"
+          >
+            <div class="text-base mb-0.5">🏠</div>
+            <div class="text-xs font-bold text-[#0F172A]">Customer</div>
+          </button>
+          <button
+            onclick="closeSignInModal(); simulateLaunch('Driver', 'Run #1117-B')"
+            class="p-2.5 rounded-2xl bg-[#F4F7FB] hover:bg-[#E8F2FF] border border-[#E5ECF5] text-center transition cursor-pointer"
+          >
+            <div class="text-base mb-0.5">🚚</div>
+            <div class="text-xs font-bold text-[#0F172A]">Driver</div>
+          </button>
+          <button
+            onclick="closeSignInModal(); simulateLaunch('Owner', 'Depot Ops')"
+            class="p-2.5 rounded-2xl bg-[#F4F7FB] hover:bg-[#E8F2FF] border border-[#E5ECF5] text-center transition cursor-pointer"
+          >
+            <div class="text-base mb-0.5">💼</div>
+            <div class="text-xs font-bold text-[#0F172A]">Owner</div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Preview Canvas -->
+  <div class="flex-1 flex justify-center py-4 sm:py-6 px-2 sm:px-4">
+    <div id="app-frame" class="preview-frame w-full max-w-5xl bg-[#F4F7FB] border border-[#E5ECF5] rounded-3xl shadow-xl overflow-hidden flex flex-col">
+
+      <!-- 1. Clean Top Navigation Bar -->
+      <header class="bg-white/95 backdrop-blur border-b border-[#E5ECF5] px-5 sm:px-8 py-3.5 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#3B9EFF] to-[#1D7DFA] flex items-center justify-center shadow-sm">
+            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2.5C12 2.5 5.2 10.1 5.2 15C5.2 18.8 8.2 21.8 12 21.8C15.8 21.8 18.8 18.8 18.8 15C18.8 10.1 12 2.5 12 2.5ZM9.8 16.5C8.8 15.8 8.3 14.6 8.5 13.3C8.6 12.9 9.1 12.8 9.3 13.2C9.6 14 10.1 14.7 10.9 15.1C11.3 15.3 11.2 15.9 10.8 16.1C10.5 16.3 10.1 16.6 9.8 16.5Z"/>
+            </svg>
+          </div>
+          <div>
+            <span class="text-[#0F172A] font-extrabold text-lg tracking-tight block leading-none">AquaLoop</span>
+            <span class="text-[11px] text-[#64748B] font-medium">Order. Deliver. Return. Repeat.</span>
+          </div>
+        </div>
+
+        <nav id="desktop-nav-links" class="hidden md:flex items-center gap-6 text-xs font-semibold text-[#64748B]">
+          <a href="#how-it-works" class="hover:text-[#1D7DFA] transition">How It Works</a>
+          <a href="#role-features" class="hover:text-[#1D7DFA] transition">Platform Features</a>
+          <a href="#role-features" class="hover:text-[#1D7DFA] transition">3 User Roles</a>
+        </nav>
+
+        <div class="flex items-center gap-2">
+          <button
+            onclick="openSignInModal()"
+            class="px-3.5 py-2 rounded-full bg-[#F4F7FB] hover:bg-[#E8F2FF] border border-[#E5ECF5] text-[#0F172A] text-xs font-bold transition cursor-pointer"
+          >
+            Sign In
+          </button>
+          <button
+            onclick="launchSelectedRole()"
+            class="px-4 py-2 rounded-full bg-[#1D7DFA] hover:bg-[#1668D6] text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition cursor-pointer"
+          >
+            Launch App ›
+          </button>
+        </div>
+      </header>
+
+      <!-- 2. Hero Cover Section (2-column on desktop, stacked on mobile) -->
+      <section class="px-5 sm:px-8 pt-8 sm:pt-11 pb-10">
+        <div id="hero-grid" class="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
+
+          <!-- Left Column: Brand Headline + Interactive Role & Household Quick-Launch Card -->
+          <div class="lg:col-span-7 flex flex-col">
+            <!-- Mint Status / Tagline Pill -->
+            <div class="self-start inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E6F7F0] border border-[#BCEAD5] mb-4">
+              <span class="w-2 h-2 rounded-full bg-[#10B981]"></span>
+              <span class="text-[#059669] text-xs font-bold tracking-tight">
+                Return · Reuse · Reduce · 100% Tracked
+              </span>
+            </div>
+
+            <h1 class="text-[#0F172A] text-3xl sm:text-[42px] font-extrabold tracking-tight leading-[1.12] mb-3">
+              Order. Deliver. Return. Repeat.
+            </h1>
+
+            <p class="text-[#64748B] text-sm sm:text-base leading-relaxed mb-6 max-w-xl">
+              AquaLoop connects households, field drivers, and depot owners, turning repeat 20L water jugs and 1L glass milk bottles into a zero-waste closed loop with conversational chat ordering.
+            </p>
+
+            <!-- Interactive Live Role & Household Quick-Launch Card (Upgraded /welcome) -->
+            <div class="bg-white border border-[#E5ECF5] rounded-3xl p-5 sm:p-6 hero-card-shadow">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#64748B]">
+                  WHO'S USING THE APP?
+                </span>
+                <span class="px-2.5 py-0.5 rounded-full bg-[#E8F2FF] text-[#1D7DFA] text-[11px] font-bold">
+                  1-Click Demo Access
+                </span>
+              </div>
+
+              <!-- 3 Role Cards matching user's video -->
+              <div class="space-y-2.5 mb-5">
+                <!-- Customer Role -->
+                <button
+                  type="button"
+                  onclick="selectRole('Customer')"
+                  id="role-card-Customer"
+                  class="w-full text-left p-3.5 rounded-2xl border-2 border-[#1D7DFA] bg-[#F8FBFF] flex items-center justify-between gap-3 transition cursor-pointer"
+                >
+                  <div class="flex items-center gap-3.5">
+                    <div class="w-10 h-10 rounded-full bg-[#E8F2FF] text-[#1D7DFA] flex items-center justify-center shrink-0">
+                      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div class="text-sm font-extrabold text-[#0F172A]">Customer</div>
+                      <div class="text-xs text-[#64748B] leading-snug">
+                        Order by chat, manage your repeat order and empties.
+                      </div>
+                    </div>
+                  </div>
+                  <div id="check-Customer" class="w-6 h-6 rounded-full bg-[#1D7DFA] text-white flex items-center justify-center shrink-0">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                  </div>
+                </button>
+
+                <!-- Owner Role -->
+                <button
+                  type="button"
+                  onclick="selectRole('Owner')"
+                  id="role-card-Owner"
+                  class="w-full text-left p-3.5 rounded-2xl border border-[#E5ECF5] bg-white hover:bg-[#F8FAFC] flex items-center justify-between gap-3 transition cursor-pointer"
+                >
+                  <div class="flex items-center gap-3.5">
+                    <div class="w-10 h-10 rounded-full bg-[#E8F2FF] text-[#1D7DFA] flex items-center justify-center shrink-0">
+                      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 0h-4V4h4v2z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div class="text-sm font-extrabold text-[#0F172A]">Owner</div>
+                      <div class="text-xs text-[#64748B] leading-snug">
+                        Check messages, households, stock and runs.
+                      </div>
+                    </div>
+                  </div>
+                  <div id="check-Owner" class="hidden w-6 h-6 rounded-full bg-[#1D7DFA] text-white items-center justify-center shrink-0">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                  </div>
+                </button>
+
+                <!-- Driver Role -->
+                <button
+                  type="button"
+                  onclick="selectRole('Driver')"
+                  id="role-card-Driver"
+                  class="w-full text-left p-3.5 rounded-2xl border border-[#E5ECF5] bg-white hover:bg-[#F8FAFC] flex items-center justify-between gap-3 transition cursor-pointer"
+                >
+                  <div class="flex items-center gap-3.5">
+                    <div class="w-10 h-10 rounded-full bg-[#E8F2FF] text-[#1D7DFA] flex items-center justify-center shrink-0">
+                      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div class="text-sm font-extrabold text-[#0F172A]">Driver</div>
+                      <div class="text-xs text-[#64748B] leading-snug">
+                        Today's stops, drops and empties. No messages.
+                      </div>
+                    </div>
+                  </div>
+                  <div id="check-Driver" class="hidden w-6 h-6 rounded-full bg-[#1D7DFA] text-white items-center justify-center shrink-0">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                  </div>
+                </button>
+              </div>
+
+              <!-- Household Selector (Visible when Customer is selected) -->
+              <div id="household-selector-wrap" class="mb-5">
+                <div class="text-[11px] font-extrabold uppercase tracking-wider text-[#64748B] mb-2">
+                  YOUR HOUSEHOLD
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onclick="selectHousehold('Linden Court 2A')"
+                    id="hh-Linden Court 2A"
+                    class="px-3.5 py-2 rounded-full text-xs font-bold border border-[#1D7DFA] bg-[#E8F2FF] text-[#1D7DFA] transition cursor-pointer"
+                  >
+                    Linden Court 2A
+                  </button>
+                  <button
+                    type="button"
+                    onclick="selectHousehold('Birch House')"
+                    id="hh-Birch House"
+                    class="px-3.5 py-2 rounded-full text-xs font-bold border border-[#E5ECF5] bg-white text-[#0F172A] hover:bg-[#F4F7FB] transition cursor-pointer"
+                  >
+                    Birch House
+                  </button>
+                  <button
+                    type="button"
+                    onclick="selectHousehold('Harbour View 5')"
+                    id="hh-Harbour View 5"
+                    class="px-3.5 py-2 rounded-full text-xs font-bold border border-[#E5ECF5] bg-white text-[#0F172A] hover:bg-[#F4F7FB] transition cursor-pointer"
+                  >
+                    Harbour View 5
+                  </button>
+                  <button
+                    type="button"
+                    onclick="selectHousehold('Willow Lane 7')"
+                    id="hh-Willow Lane 7"
+                    class="px-3.5 py-2 rounded-full text-xs font-bold border border-[#E5ECF5] bg-white text-[#0F172A] hover:bg-[#F4F7FB] transition cursor-pointer"
+                  >
+                    Willow Lane 7
+                  </button>
+                </div>
+              </div>
+
+              <!-- Primary Pill CTA & Demo Note -->
+              <div class="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onclick="launchSelectedRole()"
+                  id="continue-cta-btn"
+                  class="px-6 py-3.5 rounded-full bg-[#1D7DFA] hover:bg-[#1668D6] text-white font-bold text-sm shadow-md shadow-blue-500/25 transition cursor-pointer"
+                >
+                  Continue as Customer ›
+                </button>
+                <button
+                  type="button"
+                  onclick="openSignInModal()"
+                  class="px-4 py-3 rounded-full bg-[#F4F7FB] hover:bg-[#E8F2FF] text-[#64748B] hover:text-[#1D7DFA] font-semibold text-xs transition cursor-pointer"
+                >
+                  Sign in with email
+                </button>
+              </div>
+
+              <p class="text-[11px] text-[#64748B] mt-3.5 leading-relaxed">
+                All households and orders are fictional demo data. No passwords required in this demo.
+              </p>
+            </div>
+          </div>
+
+          <!-- Right Column: Bespoke Mascot Showcase Card + Live App Status Pills -->
+          <div class="lg:col-span-5 flex flex-col gap-4">
+            <div class="bg-gradient-to-b from-[#E8F2FF] via-[#DCEBFF] to-[#F0F7FF] border border-[#D4E6FF] rounded-3xl p-6 card-shadow relative overflow-hidden">
+              <!-- Top Mint Status Pill inside Showcase -->
+              <div class="flex items-center justify-between mb-3">
+                <span class="px-3 py-1 rounded-full bg-white/90 text-[#1D7DFA] text-[11px] font-extrabold shadow-2xs">
+                  Closed-Loop Hydration
+                </span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E6F7F0] text-[#059669] text-[11px] font-extrabold">
+                  <span>💧</span> On track for 100%
+                </span>
+              </div>
+
+              <!-- Bespoke Glossy 3D-Style Water-Drop Mascot + 20L Water Jug + 1L Milk Bottle SVG -->
+              <div class="flex justify-center py-2 animate-float">
+                <img src="assets/mascot.png" alt="AquaLoop mascot: a water drop holding a 1L milk bottle beside a 20L jug" class="w-64 h-auto rounded-2xl" />
+              </div>
+
+              <!-- Floating Live App Feature Callout Cards -->
+              <div class="space-y-2.5 mt-1">
+                <!-- AI Chat Parser Card -->
+                <div class="bg-white/95 backdrop-blur rounded-2xl p-3.5 border border-[#E5ECF5] shadow-xs">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-[11px] font-extrabold text-[#1D7DFA] flex items-center gap-1">
+                      ✨ What we understood
+                    </span>
+                    <span class="px-2 py-0.5 rounded-full bg-[#E6F7F0] text-[#059669] text-[10px] font-extrabold">
+                      Confirmed
+                    </span>
+                  </div>
+                  <p class="text-xs font-bold text-[#0F172A]">
+                    "Make it 3 containers this Thursday"
+                  </p>
+                  <p class="text-[11px] text-[#64748B] mt-0.5">
+                    One-off change: 3 × 20L water • Thursday morning run
+                  </p>
+                </div>
+
+                <!-- Container Deposit Pill Card -->
+                <div class="bg-white/95 backdrop-blur rounded-2xl px-3.5 py-2.5 border border-[#E5ECF5] flex items-center justify-between">
+                  <div class="flex items-center gap-2.5">
+                    <span class="w-7 h-7 rounded-xl bg-[#FEF3C7] text-[#D97706] flex items-center justify-center text-xs font-extrabold">
+                      $8
+                    </span>
+                    <div>
+                      <div class="text-xs font-bold text-[#0F172A]">Returnable Deposit Credit</div>
+                      <div class="text-[11px] text-[#64748B]">3 empties ready for pickup</div>
+                    </div>
+                  </div>
+                  <span class="text-xs font-extrabold text-[#1D7DFA]">Auto-tracked</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. 3-Step Closed-Loop "How It Works" Strip -->
+      <section id="how-it-works" class="px-5 sm:px-8 py-9 bg-white border-y border-[#E5ECF5]">
+        <div class="flex flex-wrap items-end justify-between gap-2 mb-6">
+          <div>
+            <span class="text-[#1D7DFA] text-xs font-extrabold uppercase tracking-wider">Closed-Loop Workflow</span>
+            <h2 class="text-[#0F172A] text-2xl font-extrabold mt-0.5">How AquaLoop Works</h2>
+          </div>
+          <button
+            onclick="simulateRoute('/how-it-works', 'How Returns & Ordering Work', 'Opens your /how-it-works screen with full closed-loop details.')"
+            class="text-xs font-bold text-[#1D7DFA] hover:underline cursor-pointer"
+          >
+            See full return guide ›
+          </button>
+        </div>
+
+        <div id="steps-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Step 1 -->
+          <div class="p-5 rounded-3xl bg-[#F4F7FB] border border-[#E5ECF5]">
+            <div class="flex items-center justify-between mb-3">
+              <span class="w-8 h-8 rounded-full bg-[#1D7DFA] text-white font-extrabold text-xs flex items-center justify-center">
+                1
+              </span>
+              <span class="px-2.5 py-0.5 rounded-full bg-[#E8F2FF] text-[#1D7DFA] text-[11px] font-bold">
+                Before 6 PM Cutoff
+              </span>
+            </div>
+            <h3 class="text-[#0F172A] font-extrabold text-base mb-1.5">Order or Text in Seconds</h3>
+            <p class="text-[#64748B] text-xs sm:text-sm leading-relaxed">
+              Set weekly repeat schedules or message in plain English (e.g., <span class="italic text-[#0F172A] font-medium">"Make it 3 containers this Thursday"</span>), parsed automatically.
+            </p>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="p-5 rounded-3xl bg-[#F4F7FB] border border-[#E5ECF5]">
+            <div class="flex items-center justify-between mb-3">
+              <span class="w-8 h-8 rounded-full bg-[#1D7DFA] text-white font-extrabold text-xs flex items-center justify-center">
+                2
+              </span>
+              <span class="px-2.5 py-0.5 rounded-full bg-[#E8F2FF] text-[#1D7DFA] text-[11px] font-bold">
+                AM & PM Runs
+              </span>
+            </div>
+            <h3 class="text-[#0F172A] font-extrabold text-base mb-1.5">Smart Driver Route Runs</h3>
+            <p class="text-[#64748B] text-xs sm:text-sm leading-relaxed">
+              Drivers follow live Morning & Afternoon stop lists with ETA tracking and exact drop-off & empty pickup counts.
+            </p>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="p-5 rounded-3xl bg-[#F4F7FB] border border-[#E5ECF5]">
+            <div class="flex items-center justify-between mb-3">
+              <span class="w-8 h-8 rounded-full bg-[#10B981] text-white font-extrabold text-xs flex items-center justify-center">
+                3
+              </span>
+              <span class="px-2.5 py-0.5 rounded-full bg-[#E6F7F0] text-[#059669] text-[11px] font-bold">
+                100% Loop
+              </span>
+            </div>
+            <h3 class="text-[#0F172A] font-extrabold text-base mb-1.5">Return, Reuse, Reduce</h3>
+            <p class="text-[#64748B] text-xs sm:text-sm leading-relaxed">
+              Empty 20L jugs and 1L glass milk bottles are collected at the doorstep, crediting <span class="font-bold text-[#D97706]">$8 deposits</span> and keeping the loop at 100%.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. Role-by-Role Feature Showcase (Interactive Tabs: Customer / Driver / Owner) -->
+      <section id="role-features" class="px-5 sm:px-8 py-10">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <div>
+            <span class="text-[#1D7DFA] text-xs font-extrabold uppercase tracking-wider">Explore Every View</span>
+            <h2 class="text-[#0F172A] text-2xl font-extrabold mt-0.5">Built for All 3 Roles</h2>
+          </div>
+
+          <!-- Pill Tab Switcher -->
+          <div class="inline-flex bg-white p-1.5 rounded-full border border-[#E5ECF5] card-shadow">
+            <button
+              onclick="switchFeatureTab('Customer')"
+              id="tab-btn-Customer"
+              class="px-4 py-2 rounded-full text-xs font-extrabold bg-[#1D7DFA] text-white transition cursor-pointer"
+            >
+              Customer
+            </button>
+            <button
+              onclick="switchFeatureTab('Driver')"
+              id="tab-btn-Driver"
+              class="px-4 py-2 rounded-full text-xs font-bold text-[#64748B] hover:text-[#0F172A] transition cursor-pointer"
+            >
+              Driver
+            </button>
+            <button
+              onclick="switchFeatureTab('Owner')"
+              id="tab-btn-Owner"
+              class="px-4 py-2 rounded-full text-xs font-bold text-[#64748B] hover:text-[#0F172A] transition cursor-pointer"
+            >
+              Owner
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab Content Container -->
+        <div id="role-tab-content" class="animate-fade-slide">
+          <!-- Populated dynamically by JS to match exact app screens -->
+        </div>
+      </section>
+
+      <!-- 5. Bottom CTA Banner & Clean Footer -->
+      <section class="px-5 sm:px-8 pb-8">
+        <div class="bg-gradient-to-r from-[#1D7DFA] to-[#2563EB] rounded-3xl p-6 sm:p-8 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-lg shadow-blue-500/20">
+          <div>
+            <span class="inline-block px-3 py-1 rounded-full bg-white/15 text-white text-[11px] font-bold mb-2">
+              Judge & Team Sandbox Ready
+            </span>
+            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight">
+              Ready to test the full closed-loop experience?
+            </h2>
+            <p class="text-blue-100 text-xs sm:text-sm mt-1">
+              Jump straight into any role with pre-loaded fictional households, active routes, and demo clock controls.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap gap-2.5 shrink-0">
+            <button
+              onclick="simulateLaunch('Customer', 'Willow Lane 7')"
+              class="px-4 py-2.5 rounded-full bg-white text-[#1D7DFA] hover:bg-blue-50 font-extrabold text-xs transition cursor-pointer"
+            >
+              Customer Demo ›
+            </button>
+            <button
+              onclick="simulateLaunch('Driver', 'Run #1117-B')"
+              class="px-4 py-2.5 rounded-full bg-white/15 hover:bg-white/25 text-white border border-white/30 font-bold text-xs transition cursor-pointer"
+            >
+              Driver Run ›
+            </button>
+            <button
+              onclick="simulateLaunch('Owner', 'Depot Ops')"
+              class="px-4 py-2.5 rounded-full bg-white/15 hover:bg-white/25 text-white border border-white/30 font-bold text-xs transition cursor-pointer"
+            >
+              Owner View ›
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <footer class="px-5 sm:px-8 py-5 bg-white border-t border-[#E5ECF5] flex flex-wrap items-center justify-between gap-3 text-xs text-[#64748B]">
+        <div class="flex items-center gap-2 font-semibold text-[#0F172A]">
+          <span class="w-2 h-2 rounded-full bg-[#1D7DFA]"></span>
+          <span>AquaLoop • Order. Deliver. Return. Repeat.</span>
+        </div>
+        <div class="flex items-center gap-5 font-semibold">
+          <button onclick="simulateRoute('/privacy', 'Privacy & Access', 'Opens /privacy: what we keep and who sees it.')" class="hover:text-[#1D7DFA] cursor-pointer">
+            Privacy & Access
+          </button>
+          <button onclick="simulateRoute('/how-it-works', 'How Returns Work', 'Opens /how-it-works: deposit and container return guide.')" class="hover:text-[#1D7DFA] cursor-pointer">
+            How Returns Work
+          </button>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+  <script>
+    let selectedRole = 'Customer';
+    let selectedHousehold = 'Willow Lane 7';
+    let currentFeatureTab = 'Customer';
+    let toastTimeout = null;
+
+    const ROLE_SHOWCASE_DATA = {
+      Customer: {
+        cards: [
+          {
+            badge: 'Today\'s Orders',
+            badgeStyle: 'bg-[#E8F2FF] text-[#1D7DFA]',
+            title: 'Repeat Schedules & One-Off Edits',
+            desc: 'Manage weekly 2 × 20L water deliveries, skip upcoming Thursdays, or adjust quantities before the 6 PM cutoff.',
+            route: '/my-order'
+          },
+          {
+            badge: 'AI Chat & Order',
+            badgeStyle: 'bg-[#E6F7F0] text-[#059669]',
+            title: 'Conversational Order Parser',
+            desc: 'Tap smart chips like "Make it 3 containers this Thursday" or type naturally, with instant confirmation with zero forms.',
+            route: '/chat'
+          },
+          {
+            badge: 'Catalogue',
+            badgeStyle: 'bg-[#E8F2FF] text-[#1D7DFA]',
+            title: 'Returnable Drinks & Sizes',
+            desc: 'Browse Still Water 20L refill ($6.50), Fresh Milk 1L glass ($1.90), and Lemon Water 12-packs ($9.00).',
+            route: '/(tabs)'
+          },
+          {
+            badge: 'Containers',
+            badgeStyle: 'bg-[#FEF3C7] text-[#D97706]',
+            title: '$8 Returnable Deposit Tracker',
+            desc: 'Track containers at home (5), ready for pickup (3), and $28 in deposits automatically credited back on return.',
+            route: '/(tabs)'
+          }
+        ],
+        miniPreviewHtml: `
+          <div class="bg-white border border-[#E5ECF5] rounded-3xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <div class="text-base font-extrabold text-[#0F172A]">Today's Orders</div>
+                <div class="text-xs text-[#64748B]">3 deliveries • 0 pending</div>
+              </div>
+              <span class="px-3 py-1 rounded-full bg-[#E6F7F0] text-[#059669] text-xs font-extrabold">
+                💧 On track for 100%
+              </span>
+            </div>
+            <div class="bg-gradient-to-r from-[#E8F2FF] to-[#D9EAFF] rounded-2xl p-4 mb-3 flex items-center justify-between">
+              <div>
+                <div class="text-[11px] font-bold text-[#1D7DFA] mb-0.5">💬 Chat & Order</div>
+                <div class="text-sm font-extrabold text-[#0F172A]">Water & Milk delivered to you</div>
+                <div class="mt-2 inline-block px-3.5 py-1.5 rounded-full bg-[#1D7DFA] text-white text-xs font-bold">
+                  Start a chat ›
+                </div>
+              </div>
+              <div class="text-3xl">💧🍼</div>
+            </div>
+            <div class="grid grid-cols-2 gap-2.5">
+              <div class="p-3 rounded-2xl bg-[#F4F7FB] border border-[#E5ECF5]">
+                <div class="text-xs font-extrabold text-[#0F172A]">Willow Lane 7</div>
+                <div class="text-[11px] text-[#64748B]">3 × 20L water • Thu 19 Nov</div>
+                <span class="mt-1 inline-block px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#D97706] text-[10px] font-bold">Changed</span>
+              </div>
+              <div class="p-3 rounded-2xl bg-[#F4F7FB] border border-[#E5ECF5]">
+                <div class="text-xs font-extrabold text-[#0F172A]">Empty Containers</div>
+                <div class="text-[11px] text-[#64748B]">3 ready • $28 deposits</div>
+                <span class="mt-1 inline-block px-2 py-0.5 rounded-full bg-[#E6F7F0] text-[#059669] text-[10px] font-bold">Returnable</span>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      Driver: {
+        cards: [
+          {
+            badge: 'Today\'s Run',
+            badgeStyle: 'bg-[#E8F2FF] text-[#1D7DFA]',
+            title: 'Live Morning & Afternoon Progress',
+            desc: 'Track active run completion (Run #1117-B • 43%), start times, and estimated finish windows in real time.',
+            route: '/load-sheet'
+          },
+          {
+            badge: 'Next Stop',
+            badgeStyle: 'bg-[#E6F7F0] text-[#059669]',
+            title: 'Priority Stop & ETA Guidance',
+            desc: 'See exact drop-off items (e.g., Cedar Row 11 • 2 × 1L milk) and expected empty pickups before arriving.',
+            route: '/stop/H06'
+          },
+          {
+            badge: 'One-Tap Proof',
+            badgeStyle: 'bg-[#E8F2FF] text-[#1D7DFA]',
+            title: 'Drop-Off & Empties Collected Counters',
+            desc: 'Log 20L containers, milk bottles, crates, or damaged jugs with +/- steppers and mark Delivered or Not home.',
+            route: '/stop/H06'
+          },
+          {
+            badge: 'Zero Distraction',
+            badgeStyle: 'bg-[#F4F7FB] text-[#64748B]',
+            title: 'Focused Driver Mode (No Messages)',
+            desc: 'Clean, gloved-hand friendly interface stripped of chat noise so drivers stay focused on safe doorstep drops.',
+            route: '/(tabs)'
+          }
+        ],
+        miniPreviewHtml: `
+          <div class="bg-white border border-[#E5ECF5] rounded-3xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <div class="text-base font-extrabold text-[#0F172A]">Deliveries</div>
+                <div class="text-xs text-[#64748B]">1 active run • 4 stops left</div>
+              </div>
+              <span class="px-3 py-1 rounded-full bg-[#E6F7F0] text-[#059669] text-xs font-extrabold">
+                💧 On track for 100%
+              </span>
+            </div>
+            <div class="bg-[#E8F2FF] border border-[#D4E6FF] rounded-2xl p-4 mb-3">
+              <div class="flex items-center justify-between text-xs font-bold text-[#1D7DFA] mb-1">
+                <span>🚚 Afternoon run</span>
+                <span>43%</span>
+              </div>
+              <div class="text-sm font-extrabold text-[#0F172A]">Active delivery run</div>
+              <div class="text-[11px] text-[#64748B] mb-2.5">Run #1117-B • 4 of 7 stops remaining • Est. 3:55 PM</div>
+              <div class="w-full h-2 rounded-full bg-white overflow-hidden">
+                <div class="w-[43%] h-full bg-[#1D7DFA] rounded-full"></div>
+              </div>
+            </div>
+            <div class="p-3.5 rounded-2xl bg-[#F4F7FB] border border-[#E5ECF5] flex items-center justify-between">
+              <div>
+                <div class="text-xs font-extrabold text-[#0F172A]">2. Maple Street House</div>
+                <div class="text-[11px] text-[#64748B]">3 × 20L water • ETA 1:25 PM</div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full bg-[#E6F7F0] text-[#059669] text-[11px] font-bold">
+                Arriving in 5 min
+              </span>
+            </div>
+          </div>
+        `
+      },
+      Owner: {
+        cards: [
+          {
+            badge: 'Households',
+            badgeStyle: 'bg-[#E8F2FF] text-[#1D7DFA]',
+            title: 'Subscriber & Address Directory',
+            desc: 'Inspect active households (Linden Court 2A, Birch House, Harbour View 5, Willow Lane 7) and repeat plans.',
+            route: '/households'
+          },
+          {
+            badge: 'Load Sheet',
+            badgeStyle: 'bg-[#E8F2FF] text-[#1D7DFA]',
+            title: 'Depot Stock & Run Manifests',
+            desc: 'Balance 20L water jugs, 1L chilled milk boxes, and crate counts across Morning and Afternoon runs.',
+            route: '/load-sheet'
+          },
+          {
+            badge: 'Empties & Deposits',
+            badgeStyle: 'bg-[#FEF3C7] text-[#D97706]',
+            title: 'Closed-Loop Container Accounting',
+            desc: 'Track every container in customer possession vs. depot inventory and reconcile $8 refundable deposits.',
+            route: '/(tabs)'
+          },
+          {
+            badge: 'Messages',
+            badgeStyle: 'bg-[#E6F7F0] text-[#059669]',
+            title: 'Customer Chat Oversight',
+            desc: 'Review AI-parsed order changes and reply directly to household delivery requests in seconds.',
+            route: '/chat'
+          }
+        ],
+        miniPreviewHtml: `
+          <div class="bg-white border border-[#E5ECF5] rounded-3xl p-5 card-shadow">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <div class="text-base font-extrabold text-[#0F172A]">Depot & Fleet Overview</div>
+                <div class="text-xs text-[#64748B]">Morning & Afternoon runs synced</div>
+              </div>
+              <span class="px-3 py-1 rounded-full bg-[#E6F7F0] text-[#059669] text-xs font-extrabold">
+                100% Loop Rate
+              </span>
+            </div>
+            <div class="grid grid-cols-3 gap-2.5 mb-3">
+              <div class="p-3 rounded-2xl bg-[#F4F7FB] border border-[#E5ECF5]">
+                <div class="text-lg font-extrabold text-[#0F172A]">4</div>
+                <div class="text-[11px] text-[#64748B]">Active Households</div>
+              </div>
+              <div class="p-3 rounded-2xl bg-[#F4F7FB] border border-[#E5ECF5]">
+                <div class="text-lg font-extrabold text-[#1D7DFA]">2 Runs</div>
+                <div class="text-[11px] text-[#64748B]">AM & PM Load Sheets</div>
+              </div>
+              <div class="p-3 rounded-2xl bg-[#F4F7FB] border border-[#E5ECF5]">
+                <div class="text-lg font-extrabold text-[#D97706]">$8/jug</div>
+                <div class="text-[11px] text-[#64748B]">Deposit Pool</div>
+              </div>
+            </div>
+            <div class="p-3.5 rounded-2xl bg-[#E8F2FF] border border-[#D4E6FF] flex items-center justify-between">
+              <div>
+                <div class="text-xs font-extrabold text-[#0F172A]">Load Sheet #1117-B</div>
+                <div class="text-[11px] text-[#64748B]">All 20L water & 1L chilled milk stock verified</div>
+              </div>
+              <span class="text-xs font-extrabold text-[#1D7DFA]">Open ›</span>
+            </div>
+          </div>
+        `
+      }
+    };
+
+    function selectRole(role) {
+      selectedRole = role;
+      ['Customer', 'Owner', 'Driver'].forEach((r) => {
+        const card = document.getElementById(`role-card-${r}`);
+        const check = document.getElementById(`check-${r}`);
+        if (r === role) {
+          card.className = 'w-full text-left p-3.5 rounded-2xl border-2 border-[#1D7DFA] bg-[#F8FBFF] flex items-center justify-between gap-3 transition cursor-pointer';
+          check.classList.remove('hidden');
+          check.classList.add('flex');
+        } else {
+          card.className = 'w-full text-left p-3.5 rounded-2xl border border-[#E5ECF5] bg-white hover:bg-[#F8FAFC] flex items-center justify-between gap-3 transition cursor-pointer';
+          check.classList.add('hidden');
+          check.classList.remove('flex');
+        }
+      });
+
+      const hhWrap = document.getElementById('household-selector-wrap');
+      if (role === 'Customer') {
+        hhWrap.classList.remove('hidden');
+      } else {
+        hhWrap.classList.add('hidden');
+      }
+
+      document.getElementById('continue-cta-btn').textContent = `Continue as ${role} ›`;
+      switchFeatureTab(role);
+    }
+
+    function selectHousehold(hh) {
+      selectedHousehold = hh;
+      ['Linden Court 2A', 'Birch House', 'Harbour View 5', 'Willow Lane 7'].forEach((item) => {
+        const btn = document.getElementById(`hh-${item}`);
+        if (item === hh) {
+          btn.className = 'px-3.5 py-2 rounded-full text-xs font-bold border border-[#1D7DFA] bg-[#E8F2FF] text-[#1D7DFA] transition cursor-pointer';
+        } else {
+          btn.className = 'px-3.5 py-2 rounded-full text-xs font-bold border border-[#E5ECF5] bg-white text-[#0F172A] hover:bg-[#F4F7FB] transition cursor-pointer';
+        }
+      });
+    }
+
+    function switchFeatureTab(role) {
+      currentFeatureTab = role;
+      ['Customer', 'Driver', 'Owner'].forEach((r) => {
+        const btn = document.getElementById(`tab-btn-${r}`);
+        if (r === role) {
+          btn.className = 'px-4 py-2 rounded-full text-xs font-extrabold bg-[#1D7DFA] text-white transition cursor-pointer';
+        } else {
+          btn.className = 'px-4 py-2 rounded-full text-xs font-bold text-[#64748B] hover:text-[#0F172A] transition cursor-pointer';
+        }
+      });
+
+      const data = ROLE_SHOWCASE_DATA[role];
+      const container = document.getElementById('role-tab-content');
+      const isMobile = document.getElementById('app-frame').style.width === '390px';
+
+      container.innerHTML = `
+        <div class="grid ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-12'} gap-5 items-start">
+          <div class="${isMobile ? '' : 'lg:col-span-7'} grid ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'} gap-3.5">
+            ${data.cards.map(c => `
+              <button
+                onclick="simulateRoute('${c.route}', '${c.title.replace(/'/g, "\\'")}', 'Preview: shows the ${c.route} screen from the app walkthrough.')"
+                class="text-left p-4 rounded-3xl bg-white hover:bg-[#F8FBFF] border border-[#E5ECF5] hover:border-[#1D7DFA]/50 card-shadow transition cursor-pointer"
+              >
+                <span class="inline-block px-2.5 py-0.5 rounded-full ${c.badgeStyle} text-[11px] font-extrabold mb-2">
+                  ${c.badge}
+                </span>
+                <h3 class="text-sm font-extrabold text-[#0F172A] mb-1">${c.title}</h3>
+                <p class="text-xs text-[#64748B] leading-relaxed mb-2.5">${c.desc}</p>
+                <span class="text-[11px] font-bold text-[#1D7DFA]">Open ${c.route} ›</span>
+              </button>
+            `).join('')}
+          </div>
+          <div class="${isMobile ? '' : 'lg:col-span-5'}">
+            ${data.miniPreviewHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    function launchSelectedRole() {
+      const context = selectedRole === 'Customer' ? selectedHousehold : (selectedRole === 'Driver' ? 'Run #1117-B' : 'Depot Ops');
+      simulateLaunch(selectedRole, context);
+    }
+
+    function simulateLaunch(role, context) {
+      const routeMap = {
+        Customer: '/(tabs)',
+        Driver: '/(tabs)',
+        Owner: '/(tabs)'
+      };
+      simulateRoute(
+        routeMap[role],
+        `Entering ${role} Mode (${context})`,
+        `Preview only: this page shows the ${role} view. The live app is opened separately in Expo Go.`
+      );
+    }
+
+    function simulateRoute(route, title, desc) {
+      const toast = document.getElementById('route-toast');
+      document.getElementById('toast-route').textContent = route;
+      document.getElementById('toast-title').textContent = title;
+      document.getElementById('toast-desc').textContent = desc;
+      toast.classList.remove('hidden');
+
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 4200);
+    }
+
+    function hideToast() {
+      document.getElementById('route-toast').classList.add('hidden');
+    }
+
+    function openSignInModal() {
+      document.getElementById('signin-modal').classList.remove('hidden');
+    }
+
+    function closeSignInModal() {
+      document.getElementById('signin-modal').classList.add('hidden');
+    }
+
+    function submitModalSignIn() {
+      const email = document.getElementById('modal-email').value.trim() || 'judge@aqualoop.demo';
+      closeSignInModal();
+      simulateRoute('/(tabs)', `Signed in as ${email}`, `Demo sign-in only, no real account is created. Showing ${selectedHousehold}.`);
+    }
+
+    function setViewport(mode) {
+      const frame = document.getElementById('app-frame');
+      const btnDesktop = document.getElementById('btn-desktop');
+      const btnMobile = document.getElementById('btn-mobile');
+      const heroGrid = document.getElementById('hero-grid');
+      const stepsGrid = document.getElementById('steps-grid');
+      const desktopNav = document.getElementById('desktop-nav-links');
+
+      if (mode === 'mobile') {
+        frame.style.width = '390px';
+        frame.classList.add('rounded-[2.5rem]', 'border-4', 'border-slate-300');
+        btnMobile.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-[#1D7DFA] text-white shadow-sm transition cursor-pointer';
+        btnDesktop.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+        heroGrid.className = 'grid grid-cols-1 gap-6 items-start';
+        stepsGrid.className = 'grid grid-cols-1 gap-4';
+        desktopNav.className = 'hidden';
+      } else {
+        frame.style.width = '100%';
+        frame.classList.remove('rounded-[2.5rem]', 'border-4', 'border-slate-300');
+        btnDesktop.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-[#1D7DFA] text-white shadow-sm transition cursor-pointer';
+        btnMobile.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+        heroGrid.className = 'grid grid-cols-1 lg:grid-cols-12 gap-7 items-start';
+        stepsGrid.className = 'grid grid-cols-1 md:grid-cols-3 gap-4';
+        desktopNav.className = 'hidden md:flex items-center gap-6 text-xs font-semibold text-[#64748B]';
+      }
+      switchFeatureTab(currentFeatureTab);
+    }
+
+    // Initialize default household and tab view
+    selectHousehold(selectedHousehold);
+    switchFeatureTab('Customer');
+  </script>
+</body>
+</html>

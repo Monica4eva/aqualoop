@@ -1,28 +1,9 @@
-import { createMMKV } from 'react-native-mmkv';
-import type { StateStorage } from 'zustand/middleware';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { StateStorage } from "zustand/middleware";
 
-/** The app's single MMKV instance — synchronous, on-device key-value storage. Don't
- *  create more instances and don't reach for AsyncStorage; everything persists here. */
-export const storage = createMMKV();
-
-/**
- * Zustand persist adapter backed by MMKV. Every store uses it:
- *
- *   import { create } from 'zustand';
- *   import { createJSONStorage, persist } from 'zustand/middleware';
- *   import { zustandStorage } from '@/lib/storage';
- *
- *   export const useWorkoutsStore = create<WorkoutsState>()(
- *     persist((set) => ({ ... }), {
- *       name: 'workouts',
- *       storage: createJSONStorage(() => zustandStorage),
- *     }),
- *   );
- *
- * See rules/state-management.md for the full store pattern.
- */
+// Async key-value storage used by the Zustand stores (aqua-store, settings-store).
 export const zustandStorage: StateStorage = {
-  setItem: (name, value) => storage.set(name, value),
-  getItem: (name) => storage.getString(name) ?? null,
-  removeItem: (name) => storage.remove(name),
+  setItem: (name, value) => AsyncStorage.setItem(name, value),
+  getItem: (name) => AsyncStorage.getItem(name),
+  removeItem: (name) => AsyncStorage.removeItem(name),
 };

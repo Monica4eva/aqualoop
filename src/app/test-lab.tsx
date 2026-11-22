@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { Presets } from 'react-native-pulsar';
+import { Presets } from '../lib/haptics';
 
 import { BackHeader } from '@/components/back-header';
 import { Chip } from '@/components/chip';

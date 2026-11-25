@@ -1,9 +1,19 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import pg from "pg";
 
 const { Pool } = pg;
 const app = new Hono();
+// Allow local AquaLoop frontend to access the API
+app.use(
+  "*",
+  cors({
+    origin: ["http://localhost:8081", "http://127.0.0.1:8081"],
+    allowMethods: ["GET", "OPTIONS"],
+    allowHeaders: ["Content-Type"],
+  }),
+);
 
 // PostgreSQL connection for local and cloud environments
 const pool = new Pool({

@@ -88,8 +88,5 @@
   "trustedDependencies": [
     "@shopify/react-native-skia"
   ],
-  "private": true,
-  "patchedDependencies": {
-    "expo-dev-launcher@57.0.16": "patches/expo-dev-launcher@57.0.16.patch"
-  }
+  "private": true
 }

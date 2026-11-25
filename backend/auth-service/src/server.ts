@@ -40,7 +40,7 @@ app.get('/health', (c) => c.json({ ok: true, service: 'auth' }))
 app.get('/healthz', (c) => c.json({ ok: true, service: 'auth' }))
 
 app.all('/api/auth/*', (c) => {
-  const auth = createAuth(c.env, c.req.raw, c.executionCtx)
+  const auth = createAuth(c.env, c.req.raw,c.executionCtx as any)
   return auth.handler(c.req.raw)
 })
 

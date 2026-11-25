@@ -3,29 +3,31 @@ import { Hono } from "hono";
 import pg from "pg";
 
 const { Pool } = pg;
-
 const app = new Hono();
 
-// Connect to the local AquaLoop PostgreSQL database.
-// Credentials are read from environment variables.
+// PostgreSQL connection for local and cloud environments
 const pool = new Pool({
   host: process.env.PGHOST || "localhost",
   port: Number(process.env.PGPORT || 5432),
   database: process.env.PGDATABASE || "AquaLoop",
   user: process.env.PGUSER,
   password: process.env.PGPASSWORD,
+  max: 5,
 });
 
-// Local development health check
+// API health check
 app.get("/health", (c) => {
-  return c.json({ status: "ok", service: "AquaLoop Local API" });
+  return c.json({
+    status: "ok",
+    service: "AquaLoop API",
+  });
 });
 
-// Retrieve fictional households for local testing
+// Retrieve households from PostgreSQL
 app.get("/api/households", async (c) => {
   try {
     const result = await pool.query(
-      "SELECT * FROM aqualoop.households LIMIT 20",
+      "SELECT * FROM aqualoop.households ORDER BY household_id LIMIT 20",
     );
 
     return c.json({
@@ -35,16 +37,18 @@ app.get("/api/households", async (c) => {
     });
   } catch (error) {
     console.error("Database query failed:", error);
-    return c.json({ success: false, error: "Database unavailable" }, 500);
+
+    return c.json(
+      {
+        success: false,
+        error: "Database unavailable",
+      },
+      500,
+    );
   }
 });
 
-serve({
-  fetch: app.fetch,
-  port: 3001,
-  hostname: "127.0.0.1",
-});
-
+// Start a single server
 const port = Number(process.env.PORT || 3001);
 
 serve({

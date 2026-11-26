@@ -1,17 +1,19 @@
-import '@/global.css';
+import { useAquaStore } from "@/features/aqua/store/aqua-store";
+import "@/global.css";
+import { useEffect } from "react";
 
-import Constants from 'expo-constants';
-import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { HeroUINativeProvider } from 'heroui-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { Newly } from '@newly/sdk-react-native';
+import { Newly } from "@newly/sdk-react-native";
+import Constants from "expo-constants";
+import { DefaultTheme, Stack, ThemeProvider } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { HeroUINativeProvider } from "heroui-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 
-import { Palette } from '@/constants/theme';
-import { ThemeSwitchHost } from '@/components/theme-switch-host';
-import { hideExpoDeveloperUi } from '@/lib/dev-menu';
-import generatedAnalytics from '@/lib/newly-analytics.json';
+import { ThemeSwitchHost } from "@/components/theme-switch-host";
+import { Palette } from "@/constants/theme";
+import { hideExpoDeveloperUi } from "@/lib/dev-menu";
+import generatedAnalytics from "@/lib/newly-analytics.json";
 
 type NewlyAnalyticsExtra = {
   newlyAnalyticsEnabled?: unknown;
@@ -32,7 +34,8 @@ const generated = generatedAnalytics as {
   enabled?: boolean;
   samplingRate?: number | null;
 };
-const analyticsExtra = (Constants.expoConfig?.extra ?? {}) as NewlyAnalyticsExtra;
+const analyticsExtra = (Constants.expoConfig?.extra ??
+  {}) as NewlyAnalyticsExtra;
 const analytics = generated.ingestKey
   ? {
       ingestKey: generated.ingestKey,
@@ -47,9 +50,12 @@ const analytics = generated.ingestKey
       sampling: analyticsExtra.newlyAnalyticsSamplingRate,
     };
 
-const newlyIngestKey = typeof analytics.ingestKey === 'string' ? analytics.ingestKey : '';
-const newlyApiUrl = typeof analytics.apiUrl === 'string' ? analytics.apiUrl : '';
-const newlyAnalyticsSampling = typeof analytics.sampling === 'number' ? analytics.sampling : undefined;
+const newlyIngestKey =
+  typeof analytics.ingestKey === "string" ? analytics.ingestKey : "";
+const newlyApiUrl =
+  typeof analytics.apiUrl === "string" ? analytics.apiUrl : "";
+const newlyAnalyticsSampling =
+  typeof analytics.sampling === "number" ? analytics.sampling : undefined;
 
 // Expo's floating gear and developer menu belong to whoever is debugging Expo, not to
 // the person looking at their own app. See src/lib/dev-menu.ts for why this is JS and
@@ -75,6 +81,16 @@ if (analytics.enabled !== false && newlyIngestKey && newlyApiUrl) {
 // pre-baked into the scaffold (along with MMKV for persistence and Skia for charts) so the
 // native module set is fixed up front and screen work hot-reloads without a native rebuild.
 export default function RootLayout() {
+  const loadCloudHouseholds = useAquaStore((s) => s.loadCloudHouseholds);
+
+  useEffect(() => {
+    if (process.env.EXPO_PUBLIC_USE_CLOUD === "true") {
+      loadCloudHouseholds().catch((error) => {
+        console.error("Cloud household loading failed:", error);
+      });
+    }
+  }, [loadCloudHouseholds]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
@@ -84,7 +100,12 @@ export default function RootLayout() {
                 toggle switches via useThemeSwitch() and the circular reveal plays. */}
             <ThemeSwitchHost>
               <StatusBar style="dark" />
-              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Palette.background } }} />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: Palette.background },
+                }}
+              />
             </ThemeSwitchHost>
           </ThemeProvider>
         </HeroUINativeProvider>

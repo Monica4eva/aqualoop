@@ -5,7 +5,7 @@ import { Platform } from "react-native";
 
 // The `auth` and `api` rows of `newly services list`. Here and not in app.json:
 // anything under `expo.extra` is a native input and costs a full native build.
-export const AUTH_URL: string = "https://auth-62e4570c-a5f9-4173-b966-561abfe57e2b-dev.api.newlyapp.com";
+export const AUTH_URL: string = "https://auth-service-3uxeubnqfa-uc.a.run.app";
 export const API_URL: string = "https://api-62e4570c-a5f9-4173-b966-561abfe57e2b-dev.api.newlyapp.com";
 
 export const BEARER_TOKEN_KEY = "expobase_bearer_token";

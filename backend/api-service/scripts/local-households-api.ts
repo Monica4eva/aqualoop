@@ -11,7 +11,7 @@ app.use(
   "*",
   cors({
     origin: ["http://localhost:8081", "http://127.0.0.1:8081"],
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
     allowHeaders: ["Content-Type"],
   }),
 );
@@ -220,7 +220,77 @@ app.post("/api/orders", async (c) => {
     );
   }
 });
+const reviewSchema = z
+  .object({
+    status: z.enum(["confirmed", "rejected"]),
+  })
+  .strict();
 
+// Update an order after owner review
+app.patch("/api/orders/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+
+    if (!/^[1-9]\d{0,18}$/.test(id)) {
+      return c.json(
+        {
+          success: false,
+          error: "Invalid order ID",
+        },
+        400,
+      );
+    }
+
+    const validation = reviewSchema.safeParse(await c.req.json());
+
+    if (!validation.success) {
+      return c.json(
+        {
+          success: false,
+          error: "Invalid review status",
+        },
+        400,
+      );
+    }
+
+    const { status } = validation.data;
+
+    const result = await pool.query(
+      `UPDATE aqualoop.orders
+       SET status = $1,
+           updated_at = NOW()
+       WHERE order_id = $2
+         AND status = 'owner_review'
+       RETURNING *`,
+      [status, id],
+    );
+
+    if (result.rowCount === 0) {
+      return c.json(
+        {
+          success: false,
+          error: "Order not found or already reviewed",
+        },
+        409,
+      );
+    }
+
+    return c.json({
+      success: true,
+      order: result.rows[0],
+    });
+  } catch (error) {
+    console.error("Order review update failed:", error);
+
+    return c.json(
+      {
+        success: false,
+        error: "Unable to update order",
+      },
+      500,
+    );
+  }
+});
 // Retrieve delivery runs
 app.get("/api/delivery-runs", async (c) => {
   try {

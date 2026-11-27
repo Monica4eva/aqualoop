@@ -75,9 +75,10 @@ function resolveEnv(override?: Partial<AuthEnv>): AuthEnv {
  */
 function appSchemeOrigin(env: AuthEnv, request?: Request): string[] {
   const origin = request?.headers.get('expo-origin') ?? request?.headers.get('origin') ?? ''
+  const appScheme = process.env.APP_SCHEME
 
-  if (env.APP_SCHEME) {
-    return origin.toLowerCase().startsWith(env.APP_SCHEME.toLowerCase()) ? [env.APP_SCHEME] : []
+  if (appScheme) {
+    return origin.toLowerCase().startsWith(appScheme.toLowerCase()) ? [appScheme] : []
   }
 
   // Disallow arbitrary custom URL schemes in production when APP_SCHEME is unset.
@@ -94,15 +95,15 @@ export function assertConfig(env: AuthEnv, emailOn: boolean) {
   if (!env.BETTER_AUTH_SECRET || env.BETTER_AUTH_SECRET.length < 32) {
     throw new Error('BETTER_AUTH_SECRET must be at least 32 characters')
   }
-  const authUrl = env.BETTER_AUTH_URL ?? ''
+  const authUrl = process.env.BETTER_AUTH_URL ?? ''
   if (!authUrl.startsWith('https://') && !authUrl.startsWith('http://localhost')) {
     throw new Error('BETTER_AUTH_URL must be https (or http://localhost for local dev)')
   }
-  if (env.NEWLY_EMAIL_URL && !env.NEWLY_EMAIL_URL.startsWith('https://')) {
+  if (process.env.NEWLY_EMAIL_URL && !process.env.NEWLY_EMAIL_URL.startsWith('https://')) {
     throw new Error('NEWLY_EMAIL_URL must be https')
   }
-  // requireEmailVerification is on, so without a mailer nobody can sign in.
-  if (!emailOn && env.NEWLY_ENV === 'production') {
+  const emailOn = Boolean(process.env.NEWLY_EMAIL_URL && process.env.NEWLY_EMAIL_TOKEN)
+  if (!emailOn && process.env.NEWLY_ENV === 'production') {
     throw new Error('Email must be configured in production')
   }
 }
@@ -117,19 +118,19 @@ async function revokeAppleTokens(env: AuthEnv, userId: string) {
     .select({ refreshToken: account.refreshToken })
     .from(account)
     .where(and(eq(account.userId, userId), eq(account.providerId, 'apple')))
+
   for (const { refreshToken } of rows) {
     if (!refreshToken) continue
     const res = await fetch('https://appleid.apple.com/auth/revoke', {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        client_id: env.APPLE_CLIENT_ID,
-        client_secret: env.APPLE_CLIENT_SECRET,
+        client_id: clientId,
+        client_secret: clientSecret,
         token: refreshToken,
         token_type_hint: 'refresh_token',
       }),
     })
-    // F7: log the status only, never the response body.
     if (!res.ok) console.error('apple token revoke failed', res.status)
   }
 }
@@ -171,9 +172,9 @@ export function createAuth(envOverride?: Partial<AuthEnv>, request?: Request) {
     }).then(() => undefined)
 
   return betterAuth({
-    database: drizzleAdapter(createDb(env.DATABASE_URL), { provider: 'pg' }),
-    secret: env.BETTER_AUTH_SECRET,
-    baseURL: env.BETTER_AUTH_URL,
+    database: drizzleAdapter(createDb(process.env.DATABASE_URL!), { provider: 'pg' }),
+    secret: process.env.BETTER_AUTH_SECRET!,
+    baseURL: process.env.BETTER_AUTH_URL!,
     trustedOrigins: [
       ...new Set([...baseOrigins, ...configuredOrigins, ...appSchemeOrigin(env, request)]),
     ],
@@ -208,7 +209,7 @@ export function createAuth(envOverride?: Partial<AuthEnv>, request?: Request) {
       deleteUser: {
         enabled: true,
         beforeDelete: (user) =>
-          revokeAppleTokens(env, user.id).catch(() => console.error('apple token revoke failed')),
+          revokeAppleTokens(user.id).catch(() => console.error('apple token revoke failed')),
       },
     },
     socialProviders,

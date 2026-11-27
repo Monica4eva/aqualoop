@@ -186,3 +186,30 @@ export async function updateCloudOrderStatus(
 
   return data.order;
 }
+export async function parseCloudMessage(text: string): Promise<{
+  parsed: import("@/features/aqua/types/aqua").ParsedOrder;
+  parser: string;
+}> {
+  const response = await fetch(`${CLOUD_API_URL}/api/parse-order`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ text }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Gemini processing failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  if (!data.success || !data.parsed) {
+    throw new Error("Invalid Gemini response");
+  }
+
+  return {
+    parsed: data.parsed,
+    parser: "Gemini",
+  };
+}

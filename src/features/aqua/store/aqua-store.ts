@@ -16,6 +16,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import {
   buildCloudOrder,
   fetchCloudHouseholds,
+  parseCloudMessage,
   saveCloudOrder,
 } from "@/features/aqua/utils/cloud-api";
 import { addDays, dateKey, fmtLongDay } from "@/features/aqua/utils/dates";
@@ -139,7 +140,7 @@ export const useAquaStore = create<AquaState>()(
         const s = get();
         const hid = s.householdId;
         const at = Date.now();
-
+        const aiResult = await parseCloudMessage(text);
         const { data, message } = ingest(
           { ...s.data, clock: at },
           {
@@ -148,7 +149,7 @@ export const useAquaStore = create<AquaState>()(
             at,
             channel,
           },
-          undefined,
+          aiResult,
           true,
         );
 

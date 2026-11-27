@@ -190,7 +190,11 @@ export function processMessage(
   });
 
   const asksOnly = parsed.intent === "query" || parsed.intent === "opt_out";
-  if (!given && !asksOnly && isDuplicate(data, input))
+  if (
+    (!given || given.parser === "Gemini") &&
+    !asksOnly &&
+    isDuplicate(data, input)
+  )
     return result("duplicate", empty);
   if (!household) rules.add("R4");
   if (askedForHuman) return result("owner", empty);

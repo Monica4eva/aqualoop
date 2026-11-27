@@ -138,7 +138,7 @@ export const useAquaStore = create<AquaState>()(
       sendCloudMessage: async (text, channel = "text") => {
         const s = get();
         const hid = s.householdId;
-        const at = s.data.clock + MINUTE;
+        const at = Date.now();
 
         const { data, message } = ingest(
           { ...s.data, clock: at },

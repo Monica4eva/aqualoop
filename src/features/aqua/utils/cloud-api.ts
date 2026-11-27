@@ -1,4 +1,8 @@
-import type { Household } from "@/features/aqua/types/aqua";
+import type {
+  ChatMessage,
+  Household,
+  Product,
+} from "@/features/aqua/types/aqua";
 
 const CLOUD_API_URL =
   process.env.EXPO_PUBLIC_CLOUD_API_URL || "http://127.0.0.1:8082";
@@ -97,9 +101,10 @@ export async function fetchCloudOrders() {
 
   return data.orders;
 }
+
 export function buildCloudOrder(
-  message: import("@/features/aqua/types/aqua").ChatMessage,
-  products: import("@/features/aqua/types/aqua").Product[],
+  message: ChatMessage,
+  products: Product[],
   requestId: string,
 ): CloudOrderInput | null {
   const result = message.result;
@@ -109,7 +114,6 @@ export function buildCloudOrder(
   }
 
   const { parsed, resolution } = result;
-
   const intent = parsed.intent;
 
   if (
@@ -147,4 +151,38 @@ export function buildCloudOrder(
     items: resolution.lines,
     return_details: resolution.returns,
   };
+}
+
+export async function updateCloudOrderStatus(
+  orderId: string,
+  status: "confirmed" | "rejected",
+  edit?: {
+    delivery_date: string;
+    run: "morning" | "afternoon";
+    quantity: number;
+    items: { productId: string; qty: number }[];
+  },
+) {
+  const response = await fetch(
+    `${CLOUD_API_URL}/api/orders/${encodeURIComponent(orderId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status, edit }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Cloud order update failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  if (!data.success || !data.order) {
+    throw new Error("Invalid order update response");
+  }
+
+  return data.order;
 }

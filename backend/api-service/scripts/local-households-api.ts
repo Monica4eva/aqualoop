@@ -220,11 +220,31 @@ app.post("/api/orders", async (c) => {
     );
   }
 });
+
 const reviewSchema = z
   .object({
     status: z.enum(["confirmed", "rejected"]),
+    edit: z
+      .object({
+        delivery_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        run: z.enum(["morning", "afternoon"]),
+        quantity: z.number().int().nonnegative(),
+        items: z
+          .array(
+            z.object({
+              productId: z.string().min(1),
+              qty: z.number().int().positive(),
+            }),
+          )
+          .min(1),
+      })
+      .strict()
+      .optional(),
   })
-  .strict();
+  .strict()
+  .refine((value) => !value.edit || value.status === "confirmed", {
+    message: "Edited orders must be confirmed",
+  });
 
 // Update an order after owner review
 app.patch("/api/orders/:id", async (c) => {
@@ -247,23 +267,46 @@ app.patch("/api/orders/:id", async (c) => {
       return c.json(
         {
           success: false,
-          error: "Invalid review status",
+          error: "Invalid review details",
         },
         400,
       );
     }
 
-    const { status } = validation.data;
+    const { status, edit } = validation.data;
 
-    const result = await pool.query(
-      `UPDATE aqualoop.orders
-       SET status = $1,
-           updated_at = NOW()
-       WHERE order_id = $2
-         AND status = 'owner_review'
-       RETURNING *`,
-      [status, id],
-    );
+    const result = edit
+      ? await pool.query(
+          `UPDATE aqualoop.orders
+           SET status = 'confirmed',
+               delivery_date = $1,
+               run = $2,
+               quantity = $3,
+               items = $4::jsonb,
+               intent = 'new',
+               source = 'one_off',
+               run_id = NULL,
+               updated_at = NOW()
+           WHERE order_id = $5
+             AND status = 'owner_review'
+           RETURNING *`,
+          [
+            edit.delivery_date,
+            edit.run,
+            edit.quantity,
+            JSON.stringify(edit.items),
+            id,
+          ],
+        )
+      : await pool.query(
+          `UPDATE aqualoop.orders
+           SET status = $1,
+               updated_at = NOW()
+           WHERE order_id = $2
+             AND status = 'owner_review'
+           RETURNING *`,
+          [status, id],
+        );
 
     if (result.rowCount === 0) {
       return c.json(
@@ -291,6 +334,7 @@ app.patch("/api/orders/:id", async (c) => {
     );
   }
 });
+
 // Retrieve delivery runs
 app.get("/api/delivery-runs", async (c) => {
   try {

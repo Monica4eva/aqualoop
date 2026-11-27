@@ -1,32 +1,9 @@
-import { SELF } from 'cloudflare:test'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { app } from '../../src/server'
 
-// -----------------------------------------------------------------------------
-// Contract: every request to `/api/auth/*` MUST be forwarded to Better Auth's
-// `auth.handler(req)` with the raw Request, and whatever Response that handler
-// produces MUST be returned verbatim by the worker. `/health` and `/healthz`
-// MUST be served entirely by the worker and never reach Better Auth.
-//
-// We assert that contract by mocking `better-auth` with a fake `betterAuth()`
-// that returns a handler which:
-//   1. Records every Request it received.
-//   2. Returns a recognisable, unique Response (with custom status, headers
-//      and body) so we can prove the worker returns it unchanged.
-//
-// To keep the mock self-contained (no Neon driver, no drizzle import-time work)
-// we also stub the db client and the drizzle adapter — same shape as the unit
-// tests under tests/unit/.
-// -----------------------------------------------------------------------------
-
-// Bag of Requests the fake handler has been called with — shared across calls
-// in this test file. Cleared in `beforeEach`.
 const recordedRequests: Request[] = []
-// Bodies are read inside the handler: workerd forbids reading a request body from
-// the test's context once the worker's request has finished.
 const recordedBodies: string[] = []
 
-// Build a deterministic, distinctive Response for each call so we can verify
-// the worker returns it byte-for-byte.
 function fakeResponse(req: Request): Response {
   return new Response(
     JSON.stringify({
@@ -55,8 +32,6 @@ vi.mock('better-auth', () => ({
   })),
 }))
 
-// Keep drizzle / Neon / @better-auth plugins inert. None of them should run
-// in this test, but `createAuth` still imports them at module load.
 vi.mock('../../src/db/client', () => ({
   createDb: vi.fn(() => ({ __mock: 'db' })),
   schema: {},
@@ -102,19 +77,15 @@ describe('auth-service integration: Better Auth wiring contract', () => {
               body: JSON.stringify({ probe: true }),
             }
 
-      const res = await SELF.fetch(`${BASE}${path}`, init)
+      const res = await app.request(`${BASE}${path}`, init)
 
-      // Handler was invoked exactly once for this request.
       expect(recordedRequests).toHaveLength(1)
       const received = recordedRequests[0]!
 
-      // The handler received the RAW Request — same method, same path.
       expect(received).toBeInstanceOf(Request)
       expect(received.method).toBe(method)
       expect(new URL(received.url).pathname).toBe(path)
 
-      // The worker returned the handler's Response unchanged: same status,
-      // same custom header, same body shape.
       expect(res.status).toBe(418)
       expect(res.headers.get('X-Fake-Better-Auth')).toBe('yes')
       expect(res.headers.get('X-Echo-Method')).toBe(method)
@@ -132,7 +103,7 @@ describe('auth-service integration: Better Auth wiring contract', () => {
 
     it('forwards the request body to Better Auth intact', async () => {
       const payload = { email: 'alice@example.com', password: 'hunter2!' }
-      await SELF.fetch(`${BASE}/api/auth/sign-in/email`, {
+      await app.request(`${BASE}/api/auth/sign-in/email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -143,7 +114,7 @@ describe('auth-service integration: Better Auth wiring contract', () => {
     })
 
     it('forwards request headers (Authorization, custom) to Better Auth', async () => {
-      await SELF.fetch(`${BASE}/api/auth/get-session`, {
+      await app.request(`${BASE}/api/auth/get-session`, {
         method: 'GET',
         headers: {
           Authorization: 'Bearer test-token-xyz',
@@ -158,8 +129,6 @@ describe('auth-service integration: Better Auth wiring contract', () => {
     })
 
     it('returns the handler Response unchanged when the handler 4xx/5xx', async () => {
-      // Re-mock the handler for this single assertion to ensure a non-2xx
-      // status from Better Auth survives the worker pipeline intact.
       const betterAuthModule = await import('better-auth')
       const errorHandler = vi.fn(
         async () =>
@@ -169,12 +138,10 @@ describe('auth-service integration: Better Auth wiring contract', () => {
           }),
       )
       vi.mocked(betterAuthModule.betterAuth).mockReturnValueOnce({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handler: errorHandler as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
 
-      const res = await SELF.fetch(`${BASE}/api/auth/sign-in/email`, {
+      const res = await app.request(`${BASE}/api/auth/sign-in/email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'x@y.z', password: 'wrong' }),
@@ -189,26 +156,26 @@ describe('auth-service integration: Better Auth wiring contract', () => {
   })
 
   describe('/health and /healthz bypass Better Auth', () => {
-    it('GET /health is served by the worker, never reaches the handler', async () => {
-      const res = await SELF.fetch(`${BASE}/health`)
+    it('GET /health is served by the server, never reaches the handler', async () => {
+      const res = await app.request(`${BASE}/health`)
       expect(res.status).toBe(200)
       expect(await res.json()).toEqual({ ok: true, service: 'auth' })
       expect(recordedRequests).toHaveLength(0)
     })
 
-    it('GET /healthz is served by the worker, never reaches the handler', async () => {
-      const res = await SELF.fetch(`${BASE}/healthz`)
+    it('GET /healthz is served by the server, never reaches the handler', async () => {
+      const res = await app.request(`${BASE}/healthz`)
       expect(res.status).toBe(200)
       expect(await res.json()).toEqual({ ok: true, service: 'auth' })
       expect(recordedRequests).toHaveLength(0)
     })
 
     it('a /health hit followed by an /api/auth/* hit only records the latter', async () => {
-      await SELF.fetch(`${BASE}/health`)
-      await SELF.fetch(`${BASE}/healthz`)
+      await app.request(`${BASE}/health`)
+      await app.request(`${BASE}/healthz`)
       expect(recordedRequests).toHaveLength(0)
 
-      await SELF.fetch(`${BASE}/api/auth/jwks`)
+      await app.request(`${BASE}/api/auth/jwks`)
       expect(recordedRequests).toHaveLength(1)
       expect(new URL(recordedRequests[0]!.url).pathname).toBe('/api/auth/jwks')
     })

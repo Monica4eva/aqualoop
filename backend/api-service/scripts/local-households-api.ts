@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import pg from "pg";
+import { z } from "zod";
 
 const { Pool } = pg;
 const app = new Hono();
@@ -10,7 +11,7 @@ app.use(
   "*",
   cors({
     origin: ["http://localhost:8081", "http://127.0.0.1:8081"],
-    allowMethods: ["GET", "OPTIONS"],
+    allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type"],
   }),
 );
@@ -52,6 +53,222 @@ app.get("/api/households", async (c) => {
       {
         success: false,
         error: "Database unavailable",
+      },
+      500,
+    );
+  }
+});
+
+const orderSchema = z.object({
+  request_id: z.string().min(1).max(200),
+  household_id: z.string().min(1),
+  delivery_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable(),
+  run: z.enum(["morning", "afternoon"]),
+  intent: z.enum(["new", "change", "skip", "cancel", "return_only", "query"]),
+  quantity: z.number().int().nonnegative().nullable(),
+  returns_requested: z.number().int().nonnegative(),
+  source: z.enum(["standing", "one_off", "pickup_only"]),
+  message_text: z.string().max(10000),
+  confidence: z.number().min(0).max(1),
+  review_reasons: z.array(z.string()).default([]),
+  items: z.array(
+    z.object({
+      productId: z.string().min(1),
+      qty: z.number().int().positive(),
+    }),
+  ),
+  return_details: z
+    .object({
+      "20L_container": z.number().int().nonnegative().optional(),
+      milk_bottle: z.number().int().nonnegative().optional(),
+      crate: z.number().int().nonnegative().optional(),
+    })
+    .strict(),
+});
+
+// Retrieve cloud orders
+app.get("/api/orders", async (c) => {
+  try {
+    const result = await pool.query(
+      `SELECT *
+       FROM aqualoop.orders
+       ORDER BY received_at DESC
+       LIMIT 500`,
+    );
+
+    return c.json({
+      success: true,
+      count: result.rowCount,
+      orders: result.rows,
+    });
+  } catch (error) {
+    console.error("Order retrieval failed:", error);
+    return c.json(
+      {
+        success: false,
+        error: "Unable to retrieve orders",
+      },
+      500,
+    );
+  }
+});
+
+// Save incoming orders for validation and review
+app.post("/api/orders", async (c) => {
+  try {
+    const validation = orderSchema.safeParse(await c.req.json());
+
+    if (!validation.success) {
+      return c.json(
+        {
+          success: false,
+          error: "Invalid order data",
+          details: validation.error.flatten(),
+        },
+        400,
+      );
+    }
+
+    const o = validation.data;
+
+    const household = await pool.query(
+      `SELECT household_id
+       FROM aqualoop.households
+       WHERE household_id = $1 AND active = true`,
+      [o.household_id],
+    );
+
+    if (household.rowCount === 0) {
+      return c.json(
+        {
+          success: false,
+          error: "Active household not found",
+        },
+        404,
+      );
+    }
+
+    const result = await pool.query(
+      `INSERT INTO aqualoop.orders (
+        request_id,
+        household_id,
+        delivery_date,
+        run,
+        intent,
+        quantity,
+        returns_requested,
+        source,
+        status,
+        message_text,
+        confidence,
+        review_reasons,
+        items,
+        return_details
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7,
+        $8, 'owner_review', $9, $10,
+        $11, $12::jsonb, $13::jsonb
+      )
+      ON CONFLICT (request_id) DO NOTHING
+      RETURNING *`,
+      [
+        o.request_id,
+        o.household_id,
+        o.delivery_date,
+        o.run,
+        o.intent,
+        o.quantity,
+        o.returns_requested,
+        o.source,
+        o.message_text,
+        o.confidence,
+        o.review_reasons,
+        JSON.stringify(o.items),
+        JSON.stringify(o.return_details),
+      ],
+    );
+
+    if (result.rowCount === 0) {
+      return c.json(
+        {
+          success: false,
+          error: "Request ID already exists",
+        },
+        409,
+      );
+    }
+
+    return c.json(
+      {
+        success: true,
+        order: result.rows[0],
+      },
+      201,
+    );
+  } catch (error) {
+    console.error("Order creation failed:", error);
+
+    return c.json(
+      {
+        success: false,
+        error: "Unable to save order",
+      },
+      500,
+    );
+  }
+});
+
+// Retrieve delivery runs
+app.get("/api/delivery-runs", async (c) => {
+  try {
+    const result = await pool.query(
+      `SELECT *
+       FROM aqualoop.delivery_runs
+       ORDER BY delivery_date, run
+       LIMIT 500`,
+    );
+
+    return c.json({
+      success: true,
+      count: result.rowCount,
+      runs: result.rows,
+    });
+  } catch (error) {
+    console.error("Delivery retrieval failed:", error);
+    return c.json(
+      {
+        success: false,
+        error: "Unable to retrieve delivery runs",
+      },
+      500,
+    );
+  }
+});
+
+// Retrieve recorded container returns
+app.get("/api/container-returns", async (c) => {
+  try {
+    const result = await pool.query(
+      `SELECT *
+       FROM aqualoop.container_returns
+       ORDER BY returned_at DESC
+       LIMIT 500`,
+    );
+
+    return c.json({
+      success: true,
+      count: result.rowCount,
+      returns: result.rows,
+    });
+  } catch (error) {
+    console.error("Returns retrieval failed:", error);
+    return c.json(
+      {
+        success: false,
+        error: "Unable to retrieve container returns",
       },
       500,
     );

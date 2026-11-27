@@ -14,6 +14,7 @@ interface Bindings extends AuthEnv {
   // a per-env [vars] entry; UPTRACE_DSN is a Worker Secret PUT'd by deploy.sh.
   UPTRACE_OTLP_URL: string
   UPTRACE_DSN: string
+  AUTH_RATE_LIMITER?: RateLimit
 }
 
 type Variables = Record<string, never>

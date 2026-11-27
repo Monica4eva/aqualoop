@@ -14,19 +14,28 @@
   },
   "dependencies": {
     "@better-auth/expo": "1.7.15",
-    "better-auth": "1.7.15",
-    "hono": "4.12.27",
-    "drizzle-orm": "0.36.4",
+    "@hono/node-server": "^2.1.11",
     "@microlabs/otel-cf-workers": "1.0.0-rc.52",
-    "@neondatabase/serverless": "0.10.4"
+    "@neondatabase/serverless": "0.10.4",
+    "better-auth": "1.7.15",
+    "drizzle-orm": "^0.45.4",
+    "hono": "4.12.27",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
-    "auth": "1.7.15",
-    "@cloudflare/workers-types": "4.20260624.1",
     "@cloudflare/vitest-pool-workers": "0.5.41",
-    "drizzle-kit": "0.28.1",
+    "@cloudflare/workers-types": "4.20260624.1",
+    "auth": "1.7.15",
+    "drizzle-kit": "^0.31.11",
     "typescript": "5.9.3",
     "vitest": "2.1.9",
     "wrangler": "3.114.17"
+  },
+  "allowScripts": {
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.17.19": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.21.5": true
   }
 }

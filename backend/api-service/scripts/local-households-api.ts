@@ -228,7 +228,7 @@ const gemini = new GoogleGenAI({
   location: "global",
 });
 
-const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const geminiModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 const geminiInputSchema = z
   .object({

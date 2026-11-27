@@ -95,20 +95,91 @@ function resolveDate(
   at: number,
 ): string | null {
   const today = dateKey(at);
-  const phrase = p.date_phrase?.toLowerCase() ?? null;
+  const phrase = p.date_phrase?.toLowerCase().trim() ?? null;
   const usual = householdId ? nextUsualDate(data, householdId, at) : null;
+
   if (!phrase) return usual;
+
   if (phrase === "today" || phrase === "tonight") return today;
   if (phrase === "tomorrow") return addDays(today, 1);
   if (phrase === "this week") return usual;
+
   if (phrase === "next week") {
     if (!usual) return null;
     const mondayNext = nextWeekday(today, 1);
     return usual < mondayNext ? addDays(usual, 7) : usual;
   }
+
   const idx = DAYS.indexOf(phrase);
   if (idx >= 0) return nextWeekday(today, idx);
-  return usual;
+
+  // Resolve explicit calendar dates.
+  const months = [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+  ];
+
+  const match = phrase.match(
+    /^(?:on\s+)?([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?$/,
+  );
+
+  if (match) {
+    const month = months.findIndex(
+      (m) => m === match[1] || m.slice(0, 3) === match[1],
+    );
+
+    if (month < 0) return null;
+
+    const day = Number(match[2]);
+    let year = match[3] ? Number(match[3]) : Number(today.slice(0, 4));
+
+    const formatDate = (y: number) =>
+      `${y}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+    let requested = formatDate(year);
+
+    if (!match[3] && requested < today) {
+      year += 1;
+      requested = formatDate(year);
+    }
+
+    const check = new Date(Date.UTC(year, month, day));
+
+    if (
+      check.getUTCFullYear() !== year ||
+      check.getUTCMonth() !== month ||
+      check.getUTCDate() !== day
+    ) {
+      return null;
+    }
+
+    return requested;
+  }
+
+  // Accept ISO calendar dates.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(phrase)) {
+    const check = new Date(`${phrase}T00:00:00Z`);
+    if (
+      Number.isNaN(check.getTime()) ||
+      check.toISOString().slice(0, 10) !== phrase
+    ) {
+      return null;
+    }
+    return phrase;
+  }
+
+  // Unrecognized dates must be reviewed, not silently replaced.
+  return null;
 }
 
 function mergeLines(
@@ -138,6 +209,7 @@ function returnsFrom(p: ParsedOrder): Returns {
 
 export function isDuplicate(data: AquaData, input: Inbound): boolean {
   const norm = input.text.trim().toLowerCase().replace(/\s+/g, " ");
+
   return data.messages.some(
     (m) =>
       m.from === "customer" &&

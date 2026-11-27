@@ -13,7 +13,11 @@ import type {
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import { fetchCloudHouseholds } from "@/features/aqua/utils/cloud-api";
+import {
+  buildCloudOrder,
+  fetchCloudHouseholds,
+  saveCloudOrder,
+} from "@/features/aqua/utils/cloud-api";
 import { addDays, dateKey, fmtLongDay } from "@/features/aqua/utils/dates";
 import {
   advanceClock,
@@ -45,6 +49,10 @@ interface AquaState {
     householdId?: string | null,
   ) => string;
   shopAdd: (product: Product, qty: number, every: boolean) => string;
+  sendCloudMessage: (
+    text: string,
+    channel?: "text" | "voice",
+  ) => Promise<string>;
   approveReview: (id: string) => void;
   editApprove: (
     id: string,
@@ -127,7 +135,45 @@ export const useAquaStore = create<AquaState>()(
         });
         return message.id;
       },
+      sendCloudMessage: async (text, channel = "text") => {
+        const s = get();
+        const hid = s.householdId;
+        const at = s.data.clock + MINUTE;
 
+        const { data, message } = ingest(
+          { ...s.data, clock: at },
+          {
+            householdId: hid,
+            text,
+            at,
+            channel,
+          },
+          undefined,
+          true,
+        );
+
+        const requestId = `aqua-${hid}-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 12)}`;
+
+        const order = buildCloudOrder(message, data.products, requestId);
+
+        if (order) {
+          const saved = await saveCloudOrder(order);
+
+          const review = data.reviews.find((r) => r.messageId === message.id);
+
+          if (review) {
+            review.id = `cloud-${saved.order_id}`;
+          }
+
+          console.log("Cloud order saved:", saved.order_id);
+        }
+
+        set({ data });
+
+        return message.id;
+      },
       shopAdd: (product, qty, every) => {
         const s = get();
         const hid = s.householdId;

@@ -40,3 +40,111 @@ export async function fetchCloudHouseholds(): Promise<Household[]> {
     active: row.active,
   }));
 }
+
+export interface CloudOrderInput {
+  request_id: string;
+  household_id: string;
+  delivery_date: string | null;
+  run: "morning" | "afternoon";
+  intent: "new" | "change" | "skip" | "cancel" | "return_only" | "query";
+  quantity: number | null;
+  returns_requested: number;
+  source: "standing" | "one_off" | "pickup_only";
+  message_text: string;
+  confidence: number;
+  review_reasons: string[];
+  items: {
+    productId: string;
+    qty: number;
+  }[];
+  return_details: Record<string, number>;
+}
+
+export async function saveCloudOrder(order: CloudOrderInput) {
+  const response = await fetch(`${CLOUD_API_URL}/api/orders`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(order),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Cloud order save failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  if (!data.success || !data.order) {
+    throw new Error("Invalid cloud order response");
+  }
+
+  return data.order;
+}
+
+export async function fetchCloudOrders() {
+  const response = await fetch(`${CLOUD_API_URL}/api/orders`);
+
+  if (!response.ok) {
+    throw new Error(`Cloud order retrieval failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  if (!data.success || !Array.isArray(data.orders)) {
+    throw new Error("Invalid cloud orders response");
+  }
+
+  return data.orders;
+}
+export function buildCloudOrder(
+  message: import("@/features/aqua/types/aqua").ChatMessage,
+  products: import("@/features/aqua/types/aqua").Product[],
+  requestId: string,
+): CloudOrderInput | null {
+  const result = message.result;
+
+  if (!result || !message.householdId) {
+    return null;
+  }
+
+  const { parsed, resolution } = result;
+
+  const intent = parsed.intent;
+
+  if (
+    intent !== "new" &&
+    intent !== "change" &&
+    intent !== "skip" &&
+    intent !== "cancel" &&
+    intent !== "return_only"
+  ) {
+    return null;
+  }
+
+  if (result.route === "duplicate") {
+    return null;
+  }
+
+  const quantity = resolution.lines.reduce((total, line) => {
+    const product = products.find((p) => p.id === line.productId);
+
+    return product?.container === "20L_container" ? total + line.qty : total;
+  }, 0);
+
+  return {
+    request_id: requestId,
+    household_id: message.householdId,
+    delivery_date: resolution.date,
+    run: resolution.run,
+    intent,
+    quantity: resolution.lines.length ? quantity : null,
+    returns_requested: resolution.returns["20L_container"] ?? 0,
+    source: intent === "return_only" ? "pickup_only" : parsed.scope,
+    message_text: message.text,
+    confidence: parsed.confidence,
+    review_reasons: result.rules,
+    items: resolution.lines,
+    return_details: resolution.returns,
+  };
+}

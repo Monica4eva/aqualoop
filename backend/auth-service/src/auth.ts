@@ -183,6 +183,8 @@ export function createAuth(env: AuthEnv, request: Request | undefined, ctx: Exec
     advanced: {
       // TODO (F2): switch to 'lax' if the frontend and auth share a site.
       defaultCookieAttributes: { sameSite: 'none', secure: true, httpOnly: true },
+      ipAddress: {
+        ipAddressHeaders: ['cf-connecting-ip'],
     },
   })
 }

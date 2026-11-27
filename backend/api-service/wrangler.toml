@@ -45,7 +45,6 @@ max_retries = 5
 crons = []
 
 [vars]
-ALLOWED_ORIGINS = "http://localhost:8081,expobase://"
 NEWLY_ENV = "dev"
 NEWLY_PROJECT_ID = "REPLACE_NEWLY_PROJECT_ID"
 LOG_LEVEL = "info"

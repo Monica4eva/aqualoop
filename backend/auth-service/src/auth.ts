@@ -1,6 +1,6 @@
-import { expo } from '@better-auth/expo'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { expo } from '@better-auth/expo'
 import { jwt } from 'better-auth/plugins'
 import { and, eq } from 'drizzle-orm'
 import { createDb } from './db/client'
@@ -20,15 +20,15 @@ export interface AuthEnv {
   NEWLY_EMAIL_URL?: string
   NEWLY_EMAIL_TOKEN?: string
   NEWLY_APP_NAME?: string
-  NEWLY_ENV?: string
-  APP_SCHEME?: string // e.g. "expobase://" (F1). See appSchemeOrigin().
 }
 
 /**
- * Origins used during local development and preview builds.
- * Excluded automatically when NEWLY_ENV === 'production' (F2).
+ * Origins the Newly platform itself serves app previews from. Better Auth
+ * matches these as GLOBS, not regex. They are merged with — never replaced by —
+ * `TRUSTED_ORIGINS`, so a project provisioned before a preview host existed
+ * picks it up on its next deploy instead of failing with "Invalid origin".
  */
-const DEV_TRUSTED_ORIGINS = [
+const PLATFORM_TRUSTED_ORIGINS = [
   'exp://',
   '*.newly.app',
   '*.newly.dev',
@@ -38,79 +38,33 @@ const DEV_TRUSTED_ORIGINS = [
   'http://localhost:*',
 ]
 
-/**
- * Exact production web origins (root origin only, no paths or trailing slashes).
- */
-const PROD_DEFAULT_ORIGINS = [
-  'https://expo-base.expo.app',
-]
-
 const ANY_SCHEME = /^[a-z][a-z0-9.+-]*:\/\//i
 const HTTP_SCHEME = /^https?:\/\//i
 
-function resolveEnv(override?: Partial<AuthEnv>): AuthEnv {
-  return {
-    DATABASE_URL: override?.DATABASE_URL ?? process.env.DATABASE_URL ?? '',
-    BETTER_AUTH_SECRET: override?.BETTER_AUTH_SECRET ?? process.env.BETTER_AUTH_SECRET ?? '',
-    BETTER_AUTH_URL: override?.BETTER_AUTH_URL ?? process.env.BETTER_AUTH_URL ?? '',
-    GOOGLE_CLIENT_ID: override?.GOOGLE_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: override?.GOOGLE_CLIENT_SECRET ?? process.env.GOOGLE_CLIENT_SECRET,
-    APPLE_CLIENT_ID: override?.APPLE_CLIENT_ID ?? process.env.APPLE_CLIENT_ID,
-    APPLE_CLIENT_SECRET: override?.APPLE_CLIENT_SECRET ?? process.env.APPLE_CLIENT_SECRET,
-    TRUSTED_ORIGINS: override?.TRUSTED_ORIGINS ?? process.env.TRUSTED_ORIGINS,
-    NEWLY_EMAIL_URL: override?.NEWLY_EMAIL_URL ?? process.env.NEWLY_EMAIL_URL,
-    NEWLY_EMAIL_TOKEN: override?.NEWLY_EMAIL_TOKEN ?? process.env.NEWLY_EMAIL_TOKEN,
-    NEWLY_APP_NAME: override?.NEWLY_APP_NAME ?? process.env.NEWLY_APP_NAME,
-    NEWLY_ENV: override?.NEWLY_ENV ?? process.env.NEWLY_ENV,
-    APP_SCHEME: override?.APP_SCHEME ?? process.env.APP_SCHEME,
-  }
-}
-
 /**
- * The app's own deep-link origin (`expobase://`), read off the request the
+ * The app's own deep-link origin (`myapp://`), read off the request the
  * `@better-auth/expo` client tags with `expo-origin`.
  *
- * F1: when APP_SCHEME is set, only that exact scheme is trusted. In non-production,
- * falls back to any non-http scheme so local Expo builds keep working.
+ * Every Newly app picks its own scheme, so the scheme cannot be baked into
+ * `TRUSTED_ORIGINS` at provisioning time. A per-request `trustedOrigins`
+ * function is not enough either: the callbackURL check reads the static list
+ * captured at `betterAuth()` init, and the expo client rewrites a relative
+ * `callbackURL` into `myapp:///auth-callback` before sending it. The Worker
+ * builds the auth instance per request, so the scheme goes in statically here.
+ *
+ * A browser can never send a non-http(s) `Origin`, so trusting the scheme the
+ * request arrived with costs no CSRF protection.
  */
-function appSchemeOrigin(env: AuthEnv, request?: Request): string[] {
+function appSchemeOrigin(request?: Request): string[] {
   const origin = request?.headers.get('expo-origin') ?? request?.headers.get('origin') ?? ''
-  const appScheme = process.env.APP_SCHEME
-
-  if (appScheme) {
-    return origin.toLowerCase().startsWith(appScheme.toLowerCase()) ? [appScheme] : []
-  }
-
-  // Disallow arbitrary custom URL schemes in production when APP_SCHEME is unset.
-  if (env.NEWLY_ENV === 'production') return []
-
   if (!ANY_SCHEME.test(origin) || HTTP_SCHEME.test(origin)) return []
   return [origin.slice(0, origin.indexOf('://') + 3)]
 }
 
 /**
- * F16 / F7 / F4: fail fast on unsafe configuration at Cloud Run container startup.
- */
-export function assertConfig(env: AuthEnv, emailOn: boolean) {
-  if (!env.BETTER_AUTH_SECRET || env.BETTER_AUTH_SECRET.length < 32) {
-    throw new Error('BETTER_AUTH_SECRET must be at least 32 characters')
-  }
-  const authUrl = process.env.BETTER_AUTH_URL ?? ''
-  if (!authUrl.startsWith('https://') && !authUrl.startsWith('http://localhost')) {
-    throw new Error('BETTER_AUTH_URL must be https (or http://localhost for local dev)')
-  }
-  if (process.env.NEWLY_EMAIL_URL && !process.env.NEWLY_EMAIL_URL.startsWith('https://')) {
-    throw new Error('NEWLY_EMAIL_URL must be https')
-  }
-  const emailOn = Boolean(process.env.NEWLY_EMAIL_URL && process.env.NEWLY_EMAIL_TOKEN)
-  if (!emailOn && process.env.NEWLY_ENV === 'production') {
-    throw new Error('Email must be configured in production')
-  }
-}
-
-/**
  * App Store account deletion expects apps with Sign in with Apple to revoke the
- * user's Apple token (TN3194).
+ * user's Apple token (TN3194). The redirect sign-in stores Apple's refresh token,
+ * so hand it back to Apple before Better Auth deletes the account row.
  */
 async function revokeAppleTokens(env: AuthEnv, userId: string) {
   if (!env.APPLE_CLIENT_ID || !env.APPLE_CLIENT_SECRET) return
@@ -118,78 +72,52 @@ async function revokeAppleTokens(env: AuthEnv, userId: string) {
     .select({ refreshToken: account.refreshToken })
     .from(account)
     .where(and(eq(account.userId, userId), eq(account.providerId, 'apple')))
-
   for (const { refreshToken } of rows) {
     if (!refreshToken) continue
     const res = await fetch('https://appleid.apple.com/auth/revoke', {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
+        client_id: env.APPLE_CLIENT_ID,
+        client_secret: env.APPLE_CLIENT_SECRET,
         token: refreshToken,
         token_type_hint: 'refresh_token',
       }),
     })
-    if (!res.ok) console.error('apple token revoke failed', res.status)
+    if (!res.ok) console.error('apple token revoke failed', res.status, await res.text())
   }
 }
 
-export function createAuth(envOverride?: Partial<AuthEnv>, request?: Request) {
-  const env = resolveEnv(envOverride)
-  const emailOn = Boolean(env.NEWLY_EMAIL_URL && env.NEWLY_EMAIL_TOKEN)
-  assertConfig(env, emailOn)
-
+export function createAuth(env: AuthEnv, request?: Request) {
   const socialProviders: Record<string, any> = {}
   if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
-    socialProviders.google = {
-      clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET,
-    }
+    socialProviders.google = { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
   }
   if (env.APPLE_CLIENT_ID && env.APPLE_CLIENT_SECRET) {
-    socialProviders.apple = {
-      clientId: env.APPLE_CLIENT_ID,
-      clientSecret: env.APPLE_CLIENT_SECRET,
-    }
+    socialProviders.apple = { clientId: env.APPLE_CLIENT_ID, clientSecret: env.APPLE_CLIENT_SECRET }
   }
-
-  const isProd = env.NEWLY_ENV === 'production'
-  const baseOrigins = isProd
-    ? PROD_DEFAULT_ORIGINS
-    : [...PROD_DEFAULT_ORIGINS, ...DEV_TRUSTED_ORIGINS]
-
   const configuredOrigins = env.TRUSTED_ORIGINS
     ? env.TRUSTED_ORIGINS.split(',')
         .map((s) => s.trim())
         .filter(Boolean)
     : []
-
+  const emailOn = Boolean(env.NEWLY_EMAIL_URL && env.NEWLY_EMAIL_TOKEN)
+  // Better Auth logs and swallows send failures: sign-up and reset still succeed without the email.
   const send = (to: string, kind: AuthEmailKind, url: string) =>
-    sendNewlyEmail(env, {
-      to,
-      ...authEmail(kind, { appName: env.NEWLY_APP_NAME ?? '', url }),
-    }).then(() => undefined)
-
+    sendNewlyEmail(env, { to, ...authEmail(kind, { appName: env.NEWLY_APP_NAME ?? '', url }) }).then(() => undefined)
   return betterAuth({
-    database: drizzleAdapter(createDb(process.env.DATABASE_URL!), { provider: 'pg' }),
-    secret: process.env.BETTER_AUTH_SECRET!,
-    baseURL: process.env.BETTER_AUTH_URL!,
+    database: drizzleAdapter(createDb(env.DATABASE_URL), { provider: 'pg' }),
+    secret: env.BETTER_AUTH_SECRET,
+    baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [
-      ...new Set([...baseOrigins, ...configuredOrigins, ...appSchemeOrigin(env, request)]),
+      ...new Set([...PLATFORM_TRUSTED_ORIGINS, ...configuredOrigins, ...appSchemeOrigin(request)]),
     ],
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: true,
       ...(emailOn
         ? {
-            // F14: fire-and-forget on Node/Cloud Run so response time is the same
-            // whether or not the account exists.
-            sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => {
-              void send(user.email, 'reset', url).catch(() =>
-                console.error('auth email failed: reset'),
-              )
-            },
+            sendResetPassword: ({ user, url }: { user: { email: string }; url: string }) =>
+              send(user.email, 'reset', url),
           }
         : {}),
     },
@@ -197,30 +125,25 @@ export function createAuth(envOverride?: Partial<AuthEnv>, request?: Request) {
       ? {
           emailVerification: {
             sendOnSignUp: true,
-            sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
-              void send(user.email, 'verify', url).catch(() =>
-                console.error('auth email failed: verify'),
-              )
-            },
+            sendVerificationEmail: ({ user, url }: { user: { email: string }; url: string }) =>
+              send(user.email, 'verify', url),
           },
         }
       : {}),
+    // App Store (5.1.1(v)) and Google Play both require in-app account deletion;
+    // Better Auth ships it off. It still demands the password or a fresh session.
+    // A failed Apple revoke never blocks the deletion itself.
     user: {
       deleteUser: {
         enabled: true,
         beforeDelete: (user) =>
-          revokeAppleTokens(user.id).catch(() => console.error('apple token revoke failed')),
+          revokeAppleTokens(env, user.id).catch((err) => console.error('apple token revoke failed', err)),
       },
     },
     socialProviders,
     plugins: [expo(), jwt()],
     advanced: {
-      // Keep 'none' while frontend (expo-base.expo.app) and Cloud Run (*.run.app) are on different root domains.
       defaultCookieAttributes: { sameSite: 'none', secure: true, httpOnly: true },
-      ipAddress: {
-        // Google Cloud Run appends the client IP to X-Forwarded-For.
-        ipAddressHeaders: ['x-forwarded-for'],
-      },
     },
   })
 }

@@ -107,11 +107,7 @@ export default function WelcomeScreen() {
           <Text className="text-[12px] font-semibold text-muted uppercase tracking-wide">
             Your household
           </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerClassName="gap-2"
-          >
+          <View className="flex-row flex-wrap gap-2">
             {households.map((h) => (
               <Pressable
                 key={h.id}
@@ -129,7 +125,7 @@ export default function WelcomeScreen() {
                 </View>
               </Pressable>
             ))}
-          </ScrollView>
+          </View>
         </View>
       ) : null}
 

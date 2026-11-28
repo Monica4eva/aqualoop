@@ -1,9 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
-import { PressableFeedback, useThemeColor } from 'heroui-native';
-import type { ReactNode } from 'react';
-import { Text, View } from 'react-native';
-import { Presets } from 'react-native-pulsar';
-
+import { Ionicons } from "@expo/vector-icons";
+import { PressableFeedback, useThemeColor } from "heroui-native";
+import type { ReactNode } from "react";
+import { Text, View } from "react-native";
+import { Presets } from "../lib/haptics";
 type ListRowProps = {
   title: string;
   subtitle?: string;
@@ -29,10 +28,19 @@ type ListRowProps = {
  *   <ListRow title="Bench Press" subtitle="Chest · 4 sets" onPress={() => router.push(`/exercise/${id}`)} />
  *   <ListRow title="Units" right={<Text className="text-muted">kg</Text>} />   // not tappable — no chevron
  */
-export function ListRow({ title, subtitle, left, right, onPress }: ListRowProps) {
-  const muted = useThemeColor('muted');
+export function ListRow({
+  title,
+  subtitle,
+  left,
+  right,
+  onPress,
+}: ListRowProps) {
+  const muted = useThemeColor("muted");
   const body = (
-    <View className="flex-row items-center gap-3 py-3" style={{ minHeight: 44 }}>
+    <View
+      className="flex-row items-center gap-3 py-3"
+      style={{ minHeight: 44 }}
+    >
       {left}
       <View className="flex-1 gap-0.5">
         <Text className="text-base text-foreground" numberOfLines={1}>
@@ -45,7 +53,9 @@ export function ListRow({ title, subtitle, left, right, onPress }: ListRowProps)
         ) : null}
       </View>
       {right}
-      {onPress ? <Ionicons name="chevron-forward" size={16} color={muted} /> : null}
+      {onPress ? (
+        <Ionicons name="chevron-forward" size={16} color={muted} />
+      ) : null}
     </View>
   );
   if (!onPress) return body;
@@ -56,7 +66,8 @@ export function ListRow({ title, subtitle, left, right, onPress }: ListRowProps)
       onPress={() => {
         Presets.System.selection();
         onPress();
-      }}>
+      }}
+    >
       {body}
     </PressableFeedback>
   );

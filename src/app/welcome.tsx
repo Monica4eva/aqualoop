@@ -55,7 +55,15 @@ export default function WelcomeScreen() {
       className="flex-1 bg-background"
       contentContainerClassName="px-5 pt-safe-offset-6 pb-safe-offset-6 gap-5"
     >
-      <View className="items-center gap-2">
+      <View
+        style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 8,
+          width: "100%",
+          maxWidth: "100%",
+        }}
+      >
         <Image source={ART.home} className="w-48 h-40" contentFit="contain" />
         <View className="rounded-full bg-surface px-3 py-1">
           <Text className="text-[11px] font-semibold text-muted">

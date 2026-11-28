@@ -20,13 +20,17 @@ export interface AuthEnv {
   NEWLY_EMAIL_URL?: string
   NEWLY_EMAIL_TOKEN?: string
   NEWLY_APP_NAME?: string
+  NEWLY_ENV?: string
+  APP_SCHEME?: string // e.g. "myapp://" (F1). See appSchemeOrigin().
 }
 
 /**
  * Origins the Newly platform itself serves app previews from. Better Auth
- * matches these as GLOBS, not regex. They are merged with — never replaced by —
+ * matches these as GLOBS, not regex. They are merged with, never replaced by,
  * `TRUSTED_ORIGINS`, so a project provisioned before a preview host existed
  * picks it up on its next deploy instead of failing with "Invalid origin".
+ *
+ * TODO (F2): narrow these to exact production domains once they are known.
  */
 const PLATFORM_TRUSTED_ORIGINS = [
   'exp://',
@@ -45,20 +49,40 @@ const HTTP_SCHEME = /^https?:\/\//i
  * The app's own deep-link origin (`myapp://`), read off the request the
  * `@better-auth/expo` client tags with `expo-origin`.
  *
- * Every Newly app picks its own scheme, so the scheme cannot be baked into
- * `TRUSTED_ORIGINS` at provisioning time. A per-request `trustedOrigins`
- * function is not enough either: the callbackURL check reads the static list
- * captured at `betterAuth()` init, and the expo client rewrites a relative
- * `callbackURL` into `myapp:///auth-callback` before sending it. The Worker
- * builds the auth instance per request, so the scheme goes in statically here.
- *
- * A browser can never send a non-http(s) `Origin`, so trusting the scheme the
- * request arrived with costs no CSRF protection.
+ * F1: when APP_SCHEME is set, only that exact scheme is trusted. When it is
+ * NOT set, this falls back to the old behavior so app sign-in keeps working.
  */
-function appSchemeOrigin(request?: Request): string[] {
+function appSchemeOrigin(env: AuthEnv, request?: Request): string[] {
   const origin = request?.headers.get('expo-origin') ?? request?.headers.get('origin') ?? ''
+
+  if (env.APP_SCHEME) {
+    return origin.toLowerCase().startsWith(env.APP_SCHEME.toLowerCase()) ? [env.APP_SCHEME] : []
+  }
+
+  // Legacy fallback (remove once APP_SCHEME is set everywhere).
   if (!ANY_SCHEME.test(origin) || HTTP_SCHEME.test(origin)) return []
   return [origin.slice(0, origin.indexOf('://') + 3)]
+}
+
+/**
+ * F16 / F7: fail fast on unsafe configuration. Workers have no startup phase,
+ * so this runs when the auth instance is created.
+ */
+function assertConfig(env: AuthEnv, emailOn: boolean) {
+  if (!env.BETTER_AUTH_SECRET || env.BETTER_AUTH_SECRET.length < 32) {
+    throw new Error('BETTER_AUTH_SECRET must be at least 32 characters')
+  }
+  const authUrl = env.BETTER_AUTH_URL ?? ''
+  if (!authUrl.startsWith('https://') && !authUrl.startsWith('http://localhost')) {
+    throw new Error('BETTER_AUTH_URL must be https (or http://localhost for local dev)')
+  }
+  if (env.NEWLY_EMAIL_URL && !env.NEWLY_EMAIL_URL.startsWith('https://')) {
+    throw new Error('NEWLY_EMAIL_URL must be https')
+  }
+  // requireEmailVerification is on, so without a mailer nobody can sign in.
+  if (!emailOn && env.NEWLY_ENV === 'production') {
+    throw new Error('Email must be configured in production')
+  }
 }
 
 /**
@@ -84,11 +108,15 @@ async function revokeAppleTokens(env: AuthEnv, userId: string) {
         token_type_hint: 'refresh_token',
       }),
     })
-    if (!res.ok) console.error('apple token revoke failed', res.status, await res.text())
+    // F7: log the status only, never the response body.
+    if (!res.ok) console.error('apple token revoke failed', res.status)
   }
 }
 
-export function createAuth(env: AuthEnv, request?: Request) {
+export function createAuth(env: AuthEnv, request: Request | undefined, ctx: ExecutionContext) {
+  const emailOn = Boolean(env.NEWLY_EMAIL_URL && env.NEWLY_EMAIL_TOKEN)
+  assertConfig(env, emailOn)
+
   const socialProviders: Record<string, any> = {}
   if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
     socialProviders.google = { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
@@ -101,23 +129,30 @@ export function createAuth(env: AuthEnv, request?: Request) {
         .map((s) => s.trim())
         .filter(Boolean)
     : []
-  const emailOn = Boolean(env.NEWLY_EMAIL_URL && env.NEWLY_EMAIL_TOKEN)
+
   // Better Auth logs and swallows send failures: sign-up and reset still succeed without the email.
   const send = (to: string, kind: AuthEmailKind, url: string) =>
     sendNewlyEmail(env, { to, ...authEmail(kind, { appName: env.NEWLY_APP_NAME ?? '', url }) }).then(() => undefined)
+
   return betterAuth({
     database: drizzleAdapter(createDb(env.DATABASE_URL), { provider: 'pg' }),
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [
-      ...new Set([...PLATFORM_TRUSTED_ORIGINS, ...configuredOrigins, ...appSchemeOrigin(request)]),
+      ...new Set([...PLATFORM_TRUSTED_ORIGINS, ...configuredOrigins, ...appSchemeOrigin(env, request)]),
     ],
     emailAndPassword: {
       enabled: true,
+      requireEmailVerification: true,
       ...(emailOn
         ? {
-            sendResetPassword: ({ user, url }: { user: { email: string }; url: string }) =>
-              send(user.email, 'reset', url),
+            // F14: don't await the mailer, so response time is the same
+            // whether or not the account exists.
+            sendResetPassword: ({ user, url }: { user: { email: string }; url: string }) => {
+              ctx.waitUntil(
+                send(user.email, 'reset', url).catch(() => console.error('auth email failed: reset')),
+              )
+            },
           }
         : {}),
     },
@@ -125,8 +160,11 @@ export function createAuth(env: AuthEnv, request?: Request) {
       ? {
           emailVerification: {
             sendOnSignUp: true,
-            sendVerificationEmail: ({ user, url }: { user: { email: string }; url: string }) =>
-              send(user.email, 'verify', url),
+            sendVerificationEmail: ({ user, url }: { user: { email: string }; url: string }) => {
+              ctx.waitUntil(
+                send(user.email, 'verify', url).catch(() => console.error('auth email failed: verify')),
+              )
+            },
           },
         }
       : {}),
@@ -137,13 +175,16 @@ export function createAuth(env: AuthEnv, request?: Request) {
       deleteUser: {
         enabled: true,
         beforeDelete: (user) =>
-          revokeAppleTokens(env, user.id).catch((err) => console.error('apple token revoke failed', err)),
+          revokeAppleTokens(env, user.id).catch(() => console.error('apple token revoke failed')),
       },
     },
     socialProviders,
     plugins: [expo(), jwt()],
     advanced: {
+      // TODO (F2): switch to 'lax' if the frontend and auth share a site.
       defaultCookieAttributes: { sameSite: 'none', secure: true, httpOnly: true },
+      ipAddress: {
+        ipAddressHeaders: ['cf-connecting-ip'],
     },
   })
 }
